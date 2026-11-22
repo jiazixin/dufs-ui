@@ -1,0 +1,85 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Audit production dependencies
+        run: npm audit --audit-level=high --omit=dev
+
+      - name: Build assets
+        run: npm run build
+
+      - name: Package release archives
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p release
+          (cd dist && zip -r "../release/dufs-ui-${TAG}.zip" .)
+          tar -czf "release/dufs-ui-${TAG}.tar.gz" -C dist .
+          (cd release && sha256sum "dufs-ui-${TAG}.zip" "dufs-ui-${TAG}.tar.gz" > SHA256SUMS.txt)
+          ls -lh release/
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cat <<'EOF' > release/NOTES.md
+          ### 使用方式
+
+          下载下方压缩包并解压到任意目录（例如 `./dufs-ui`），启动 `dufs` 时通过 `--assets` 指定该目录即可：
+
+          ```bash
+          unzip dufs-ui-${TAG}.zip -d dufs-ui
+          dufs /你的共享目录 -A --assets ./dufs-ui
+          ```
+
+          或使用 `.tar.gz`：
+
+          ```bash
+          mkdir -p dufs-ui && tar -xzf dufs-ui-${TAG}.tar.gz -C dufs-ui
+          dufs /你的共享目录 -A --assets ./dufs-ui
+          ```
+          EOF
+          sed -i "s/\${TAG}/${TAG}/g" release/NOTES.md
+
+          gh release create "${TAG}" \
+            "release/dufs-ui-${TAG}.zip" \
+            "release/dufs-ui-${TAG}.tar.gz" \
+            "release/SHA256SUMS.txt" \
+            --title "dufs-ui ${TAG}" \
+            --notes-file release/NOTES.md \
+            --generate-notes
