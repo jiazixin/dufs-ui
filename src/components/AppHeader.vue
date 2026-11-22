@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { Moon, QrCode, Search, Sun, Upload, X } from '@lucide/vue'
+import { Moon, QrCode, Search, Sun, X } from '@lucide/vue'
 import { useTheme } from '../app/theme'
+import BrandLogo from './BrandLogo.vue'
 
 const { href, uriPrefix, allowSearch, auth, user, isDemo } = defineProps<{
   href: string
@@ -78,9 +79,7 @@ onBeforeUnmount(() => {
     <div class="topbar-inner">
       <div class="topbar-left">
         <a :href="uriPrefix || '/'" class="brand" title="回到根目录">
-          <span class="brand-logo" aria-hidden="true">
-            <Upload :size="16" :stroke-width="2" />
-          </span>
+          <BrandLogo :size="30" />
           <span class="brand-name">DropHub</span>
           <span v-if="isDemo" class="demo-tag">演示</span>
         </a>
@@ -201,17 +200,6 @@ onBeforeUnmount(() => {
   font-weight: 700;
   letter-spacing: -0.02em;
   flex-shrink: 0;
-}
-
-.brand-logo {
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--accent-fg);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .brand-name {
