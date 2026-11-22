@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Download, QrCode, Trash2 } from '@lucide/vue'
+import { Download, Pencil, QrCode, Trash2 } from '@lucide/vue'
 import { formatBytes, formatDirCount } from '../../../lib/format/format-bytes'
 import { formatShortDate } from '../../../lib/format/format-date'
 import { demoContentStore } from '../dufs-data'
@@ -18,6 +18,7 @@ const emit = defineEmits<{
   preview: [item: PathItem]
   download: [item: PathItem]
   qr: [item: PathItem]
+  move: [item: PathItem]
   delete: [item: PathItem]
   demoDirClick: [item: PathItem]
 }>()
@@ -81,6 +82,16 @@ function handleCardOpen(item: PathItem): void {
             @click="emit('download', item)"
           >
             <Download :size="14" :stroke-width="1.7" />
+          </button>
+          <button
+            v-if="item.allow_upload && item.allow_delete"
+            type="button"
+            class="icon-btn-sm overlay-btn"
+            :aria-label="`重命名或移动 ${item.name}`"
+            title="重命名 / 移动"
+            @click="emit('move', item)"
+          >
+            <Pencil :size="14" :stroke-width="1.7" />
           </button>
           <button
             v-if="item.allow_delete"
@@ -183,7 +194,8 @@ function handleCardOpen(item: PathItem): void {
     transform var(--duration-fast) var(--ease-out);
 }
 
-.grid-card:hover .grid-overlay-actions {
+.grid-card:hover .grid-overlay-actions,
+.grid-card:focus-within .grid-overlay-actions {
   opacity: 1;
   transform: translateY(0);
 }
@@ -230,7 +242,16 @@ function handleCardOpen(item: PathItem): void {
   }
 
   .grid-overlay-actions {
+    top: 6px;
+    right: 6px;
+    gap: 3px;
     opacity: 1;
+    transform: translateY(0);
+  }
+
+  .overlay-btn {
+    width: 26px;
+    height: 26px;
   }
 }
 </style>

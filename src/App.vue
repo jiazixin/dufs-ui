@@ -385,6 +385,7 @@ function handleDemoDirClick(item: PathItem): void {
             @preview="previewItem = $event"
             @download="handleDownloadItem"
             @qr="openItemQr"
+            @move="void browser.moveItem($event)"
             @delete="void browser.deleteItem($event)"
             @demo-dir-click="handleDemoDirClick"
           />
