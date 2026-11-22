@@ -4,7 +4,7 @@ import { openConfirm, openPrompt } from '../../app/dialog'
 import { errorText } from '../../app/errors'
 import { showToast } from '../../app/toast'
 import { ensureTrailingSlash, getBaseUrl, joinRelativeUrl } from '../../lib/url'
-import { demoContentStore, loadInitialDufsData } from './dufs-data'
+import { demoContentStore, loadInitialDufsData, normalizePathItems } from './dufs-data'
 import { FILE_ERROR_MESSAGES } from './file-errors'
 import { isDirItem } from './file-types'
 import type { DufsData, PathItem, SortField, SortOrder, ViewMode } from './types'
@@ -133,15 +133,34 @@ export function useFileBrowser() {
       qs.set('sort', sortField.value)
       qs.set('order', sortOrder.value)
       qs.set('json', '')
-      const result = await api<{ paths?: PathItem[]; dir_exists?: boolean }>(
-        `${getBaseUrl()}?${qs.toString()}`,
-        { signal },
-      )
+      const result = await api<{
+        paths?: unknown
+        dir_exists?: boolean
+        allow_upload?: boolean
+        allow_delete?: boolean
+      }>(`${getBaseUrl()}?${qs.toString()}`, { signal })
+      const nextAllowUpload =
+        typeof result.allow_upload === 'boolean' ? result.allow_upload : data.value.allow_upload
+      const nextAllowDelete =
+        typeof result.allow_delete === 'boolean' ? result.allow_delete : data.value.allow_delete
       if (Array.isArray(result.paths)) {
-        paths.value = result.paths
+        paths.value = normalizePathItems(result.paths, {
+          allowUpload: nextAllowUpload,
+          allowDelete: nextAllowDelete,
+        })
       }
-      if (typeof result.dir_exists === 'boolean') {
-        data.value = { ...data.value, dir_exists: result.dir_exists }
+      if (
+        typeof result.dir_exists === 'boolean' ||
+        typeof result.allow_upload === 'boolean' ||
+        typeof result.allow_delete === 'boolean'
+      ) {
+        data.value = {
+          ...data.value,
+          dir_exists:
+            typeof result.dir_exists === 'boolean' ? result.dir_exists : data.value.dir_exists,
+          allow_upload: nextAllowUpload,
+          allow_delete: nextAllowDelete,
+        }
       }
     } catch (error: unknown) {
       if (error instanceof DOMException && error.name === 'AbortError') return

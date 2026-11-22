@@ -67,4 +67,47 @@ describe('dufs-data normalization', () => {
     expect(loaded.data.user).toBe('')
     expect(loaded.data.editable).toBe(true)
   })
+
+  it('inherits directory-level allow_upload and allow_delete for standard dufs path items', () => {
+    const normalized = normalizeDufsData({
+      href: '/golang/',
+      kind: 'Index',
+      uri_prefix: '/',
+      allow_upload: true,
+      allow_delete: true,
+      paths: [
+        { path_type: 'Dir', name: 'src', mtime: 1700000000000, size: 15 },
+        {
+          path_type: 'File',
+          name: 'readonly.txt',
+          mtime: 1700000000000,
+          size: 42,
+          allow_delete: false,
+        },
+      ],
+    })
+
+    expect(normalized.paths).toEqual([
+      {
+        path_type: 'Dir',
+        name: 'src',
+        mtime: 1700000000000,
+        size: 15,
+        etag: undefined,
+        allow_upload: true,
+        allow_delete: true,
+        readonly_descendant: undefined,
+      },
+      {
+        path_type: 'File',
+        name: 'readonly.txt',
+        mtime: 1700000000000,
+        size: 42,
+        etag: undefined,
+        allow_upload: true,
+        allow_delete: false,
+        readonly_descendant: undefined,
+      },
+    ])
+  })
 })

@@ -1,5 +1,5 @@
 import { decodeBase64Utf8 } from '../../lib/url'
-import type { DemoFileContent, DufsData, DufsPageKind, PathItem } from './types'
+import type { DemoFileContent, DufsData, DufsPageKind, PathItem, PathType } from './types'
 
 export const demoContentStore = new Map<string, DemoFileContent>()
 
@@ -14,16 +14,54 @@ function parsePageKind(value: unknown): DufsPageKind {
   return 'Index'
 }
 
+function parsePathType(value: unknown): PathType {
+  if (value === 'Dir' || value === 'SymlinkDir' || value === 'SymlinkFile') {
+    return value
+  }
+  return 'File'
+}
+
+export function normalizePathItems(
+  raw: unknown,
+  fallbackPermissions: { readonly allowUpload: boolean; readonly allowDelete: boolean },
+): PathItem[] {
+  if (!Array.isArray(raw)) return []
+  const items: PathItem[] = []
+  for (const entry of raw) {
+    if (!isRecord(entry) || typeof entry.name !== 'string') continue
+    items.push({
+      path_type: parsePathType(entry.path_type),
+      name: entry.name,
+      mtime: typeof entry.mtime === 'number' ? entry.mtime : 0,
+      size: typeof entry.size === 'number' ? entry.size : 0,
+      etag: typeof entry.etag === 'string' || entry.etag === null ? entry.etag : undefined,
+      allow_upload:
+        typeof entry.allow_upload === 'boolean'
+          ? entry.allow_upload
+          : fallbackPermissions.allowUpload,
+      allow_delete:
+        typeof entry.allow_delete === 'boolean'
+          ? entry.allow_delete
+          : fallbackPermissions.allowDelete,
+      readonly_descendant:
+        typeof entry.readonly_descendant === 'boolean' ? entry.readonly_descendant : undefined,
+    })
+  }
+  return items
+}
+
 export function normalizeDufsData(raw: unknown): DufsData {
   const obj = isRecord(raw) ? raw : {}
+  const allowUpload = Boolean(obj.allow_upload)
+  const allowDelete = Boolean(obj.allow_delete)
   return {
     href: typeof obj.href === 'string' && obj.href.length > 0 ? obj.href : '/',
     uri_prefix:
       typeof obj.uri_prefix === 'string' && obj.uri_prefix.length > 0 ? obj.uri_prefix : '/',
     kind: parsePageKind(obj.kind),
-    paths: Array.isArray(obj.paths) ? (obj.paths as PathItem[]) : [],
-    allow_upload: Boolean(obj.allow_upload),
-    allow_delete: Boolean(obj.allow_delete),
+    paths: normalizePathItems(obj.paths, { allowUpload, allowDelete }),
+    allow_upload: allowUpload,
+    allow_delete: allowDelete,
     allow_search: Boolean(obj.allow_search),
     allow_archive: Boolean(obj.allow_archive),
     auth: Boolean(obj.auth),
