@@ -2,8 +2,10 @@
 import { nextTick, ref, watch } from 'vue'
 import { X } from '@lucide/vue'
 import { useDialog } from '../app/dialog'
+import { useScrollLock } from '../app/scroll-lock'
 
 const { activeDialog, resolveDialog } = useDialog()
+useScrollLock(() => activeDialog.value !== null)
 const dialogRef = ref<HTMLDialogElement | null>(null)
 const inputRef = ref<HTMLInputElement | null>(null)
 const draftValue = ref('')

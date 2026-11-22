@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { FilePlus, Save, X } from '@lucide/vue'
 import { openConfirm } from '../../../app/dialog'
+import { useScrollLock } from '../../../app/scroll-lock'
 import { formatBytes } from '../../../lib/format/format-bytes'
 
 const { isOpen, saveFile } = defineProps<{
@@ -30,6 +31,8 @@ const isSaving = ref(false)
 const isConfirmingClose = ref(false)
 
 let triggerElement: HTMLElement | null = null
+
+useScrollLock(() => isOpen)
 
 const trimmedName = computed(() => fileName.value.trim())
 
@@ -416,6 +419,7 @@ onBeforeUnmount(() => {
   font-family: var(--font-mono);
   font-size: 13.5px;
   line-height: 1.65;
+  overscroll-behavior: contain;
 }
 
 .text-modal-footer {

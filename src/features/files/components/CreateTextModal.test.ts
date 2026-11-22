@@ -56,6 +56,31 @@ describe('CreateTextModal', () => {
     expect(view.emitted().close).toHaveLength(1)
   })
 
+  it('locks page scrolling while open and restores it on close or unmount', async () => {
+    const saveFile = vi.fn().mockResolvedValue(true)
+
+    const view = render(CreateTextModal, {
+      props: {
+        isOpen: false,
+        saveFile,
+      },
+    })
+
+    expect(document.documentElement.classList.contains('is-scroll-locked')).toBe(false)
+
+    await view.rerender({ isOpen: true, saveFile })
+    expect(document.documentElement.classList.contains('is-scroll-locked')).toBe(true)
+
+    await view.rerender({ isOpen: false, saveFile })
+    expect(document.documentElement.classList.contains('is-scroll-locked')).toBe(false)
+
+    await view.rerender({ isOpen: true, saveFile })
+    expect(document.documentElement.classList.contains('is-scroll-locked')).toBe(true)
+
+    view.unmount()
+    expect(document.documentElement.classList.contains('is-scroll-locked')).toBe(false)
+  })
+
   it('rejects invalid path segments in filename', async () => {
     const user = userEvent.setup()
     const saveFile = vi.fn().mockResolvedValue(true)

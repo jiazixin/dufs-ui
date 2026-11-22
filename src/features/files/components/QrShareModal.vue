@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { X } from '@lucide/vue'
 import { errorText } from '../../../app/errors'
+import { useScrollLock } from '../../../app/scroll-lock'
 import { showToast } from '../../../app/toast'
 import { encodeQr, qrToPngDataUrl } from '../../../lib/qr/encode-qr'
 import { copyToClipboard } from '../clipboard'
@@ -24,6 +25,8 @@ const displayUrl = ref('')
 const isGeneratingToken = ref(false)
 
 let triggerElement: HTMLElement | null = null
+
+useScrollLock(() => target !== null)
 
 watch(
   () => target,

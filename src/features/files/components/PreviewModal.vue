@@ -14,6 +14,7 @@ import {
 } from '@lucide/vue'
 import { api } from '../../../app/api'
 import { errorText } from '../../../app/errors'
+import { useScrollLock } from '../../../app/scroll-lock'
 import { showToast } from '../../../app/toast'
 import { formatBytes } from '../../../lib/format/format-bytes'
 import { formatDateTime } from '../../../lib/format/format-date'
@@ -50,6 +51,8 @@ const editDraft = ref('')
 const isSaving = ref(false)
 
 let triggerElement: HTMLElement | null = null
+
+useScrollLock(() => item !== null)
 
 const kind = computed(() => (item ? detectFileKind(item) : 'file'))
 const itemUrl = computed(() => (item ? getItemUrl(item) : ''))
@@ -565,6 +568,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 20px;
 }
 
@@ -634,6 +638,7 @@ onBeforeUnmount(() => {
 
 .preview-code {
   overflow: auto;
+  overscroll-behavior: contain;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -642,6 +647,7 @@ onBeforeUnmount(() => {
   border: none;
   outline: none;
   resize: none;
+  overscroll-behavior: contain;
 }
 
 .fallback-box {
