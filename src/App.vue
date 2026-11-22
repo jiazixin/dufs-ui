@@ -15,6 +15,7 @@ import AppDialog from './components/AppDialog.vue'
 import AppHeader from './components/AppHeader.vue'
 import AppToast from './components/AppToast.vue'
 import { copyToClipboard } from './features/files/clipboard'
+import CreateTextModal from './features/files/components/CreateTextModal.vue'
 import DropZoneHero from './features/files/components/DropZoneHero.vue'
 import FileGridView from './features/files/components/FileGridView.vue'
 import FileListTable from './features/files/components/FileListTable.vue'
@@ -53,6 +54,7 @@ const isDropzoneOpen = ref(window.localStorage.getItem(DROPZONE_KEY) !== '0')
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const folderInputRef = ref<HTMLInputElement | null>(null)
 const previewItem = ref<PathItem | null>(null)
+const isCreateTextOpen = ref(false)
 const qrTarget = ref<QrTarget | null>(null)
 
 const upload = useUploadQueue({
@@ -120,11 +122,8 @@ function handleFolderInputChange(event: Event): void {
   }
 }
 
-async function handleCreateFile(): Promise<void> {
-  const created = await browser.createFile()
-  if (created) {
-    previewItem.value = created
-  }
+function openCreateTextModal(): void {
+  isCreateTextOpen.value = true
 }
 
 function handleDownloadItem(item: PathItem): void {
@@ -224,7 +223,7 @@ function handleDemoDirClick(item: PathItem): void {
               <FolderPlus :size="14" :stroke-width="1.8" />
               <span>新建文件夹</span>
             </button>
-            <button type="button" class="btn btn-secondary" @click="void handleCreateFile()">
+            <button type="button" class="btn btn-secondary" @click="openCreateTextModal">
               <FilePlus :size="14" :stroke-width="1.8" />
               <span class="hide-sm">新建文本</span>
             </button>
@@ -365,6 +364,12 @@ function handleDemoDirClick(item: PathItem): void {
     @download="handleDownloadItem"
     @qr="openItemQr"
     @saved="void browser.refreshList()"
+  />
+
+  <CreateTextModal
+    :is-open="isCreateTextOpen"
+    :save-file="browser.saveTextFile"
+    @close="isCreateTextOpen = false"
   />
 
   <QrShareModal

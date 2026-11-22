@@ -1,7 +1,37 @@
 import { decodeBase64Utf8 } from '../../lib/url'
-import type { DemoFileContent, DufsData } from './types'
+import type { DemoFileContent, DufsData, DufsPageKind, PathItem } from './types'
 
 export const demoContentStore = new Map<string, DemoFileContent>()
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function parsePageKind(value: unknown): DufsPageKind {
+  if (value === 'Edit' || value === 'View') {
+    return value
+  }
+  return 'Index'
+}
+
+export function normalizeDufsData(raw: unknown): DufsData {
+  const obj = isRecord(raw) ? raw : {}
+  return {
+    href: typeof obj.href === 'string' && obj.href.length > 0 ? obj.href : '/',
+    uri_prefix:
+      typeof obj.uri_prefix === 'string' && obj.uri_prefix.length > 0 ? obj.uri_prefix : '/',
+    kind: parsePageKind(obj.kind),
+    paths: Array.isArray(obj.paths) ? (obj.paths as PathItem[]) : [],
+    allow_upload: Boolean(obj.allow_upload),
+    allow_delete: Boolean(obj.allow_delete),
+    allow_search: Boolean(obj.allow_search),
+    allow_archive: Boolean(obj.allow_archive),
+    auth: Boolean(obj.auth),
+    user: typeof obj.user === 'string' ? obj.user : '',
+    dir_exists: typeof obj.dir_exists === 'boolean' ? obj.dir_exists : true,
+    editable: Boolean(obj.editable),
+  }
+}
 
 function buildDemoData(): DufsData {
   const sampleSvg =
@@ -138,5 +168,5 @@ export function loadInitialDufsData(): LoadedDufsContext {
     return { data: buildDemoData(), isDemo: true }
   }
   const parsed: unknown = JSON.parse(decodeBase64Utf8(raw))
-  return { data: parsed as DufsData, isDemo: false }
+  return { data: normalizeDufsData(parsed), isDemo: false }
 }

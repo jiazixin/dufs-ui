@@ -3,7 +3,7 @@ import { api, logoutRequest } from '../../app/api'
 import { openConfirm, openPrompt } from '../../app/dialog'
 import { errorText } from '../../app/errors'
 import { showToast } from '../../app/toast'
-import { ensureTrailingSlash, getBaseUrl, isSameOriginUrl, joinRelativeUrl } from '../../lib/url'
+import { ensureTrailingSlash, getBaseUrl, joinRelativeUrl } from '../../lib/url'
 import { demoContentStore, loadInitialDufsData } from './dufs-data'
 import { FILE_ERROR_MESSAGES } from './file-errors'
 import { isDirItem } from './file-types'
@@ -233,40 +233,79 @@ export function useFileBrowser() {
     }
   }
 
-  async function createFile(): Promise<PathItem | null> {
-    const name = await openPrompt({
-      title: '新建文本文件',
-      placeholder: '例如：notes.md',
-      confirmText: '创建',
-    })
-    if (!name) return null
+  async function saveTextFile(
+    rawName: string,
+    content: string,
+    options: { checkOverwrite?: boolean } = {},
+  ): Promise<boolean> {
+    const name = rawName.trim()
+    if (!name) return false
+
+    const shouldCheckOverwrite = options.checkOverwrite ?? true
 
     if (isDemo) {
-      const created: PathItem = {
-        path_type: 'File',
-        name,
-        mtime: Date.now(),
-        size: 0,
-        allow_upload: true,
-        allow_delete: true,
+      const exists = paths.value.some((entry) => entry.name === name)
+      if (exists && shouldCheckOverwrite) {
+        const confirmed = await openConfirm({
+          title: '覆盖确认',
+          message: `文件「${name}」已存在，是否覆盖？`,
+          confirmText: '覆盖',
+          isDanger: true,
+        })
+        if (!confirmed) return false
       }
-      paths.value = [created, ...paths.value]
-      demoContentStore.set(name, { text: '' })
-      showToast(`已创建文件「${name}」`, 'success')
-      return created
+
+      const byteSize = new TextEncoder().encode(content).byteLength
+      const now = Date.now()
+      if (exists) {
+        paths.value = paths.value.map((entry) =>
+          entry.name === name ? { ...entry, mtime: now, size: byteSize } : entry,
+        )
+      } else {
+        const created: PathItem = {
+          path_type: 'File',
+          name,
+          mtime: now,
+          size: byteSize,
+          allow_upload: true,
+          allow_delete: true,
+        }
+        paths.value = [created, ...paths.value]
+      }
+      demoContentStore.set(name, { text: content })
+      showToast(`已保存「${name}」`, 'success')
+      return true
     }
 
     try {
       await checkAuth()
       const url = getRelativeUrl(name)
-      await api<undefined>(url, { method: 'PUT', body: '', responseType: 'void' })
-      if (isSameOriginUrl(url)) {
-        window.location.href = `${url}?edit`
+      if (shouldCheckOverwrite) {
+        let exists = false
+        try {
+          await api<Headers>(url, { method: 'HEAD', responseType: 'headers' })
+          exists = true
+        } catch {
+          exists = false
+        }
+        if (exists) {
+          const confirmed = await openConfirm({
+            title: '覆盖确认',
+            message: `文件「${name}」已存在，是否覆盖？`,
+            confirmText: '覆盖',
+            isDanger: true,
+          })
+          if (!confirmed) return false
+        }
       }
-      return null
+
+      await api<undefined>(url, { method: 'PUT', body: content, responseType: 'void' })
+      await refreshList()
+      showToast(`已保存「${name}」`, 'success')
+      return true
     } catch (error: unknown) {
       showToast(errorText(error, FILE_ERROR_MESSAGES), 'error')
-      return null
+      return false
     }
   }
 
@@ -419,7 +458,7 @@ export function useFileBrowser() {
     login,
     logout,
     createFolder,
-    createFile,
+    saveTextFile,
     moveItem,
     deleteItem,
     generateTokenUrl,

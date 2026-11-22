@@ -65,7 +65,7 @@ const canEditText = computed(
   () =>
     item !== null &&
     item.allow_upload &&
-    item.allow_delete &&
+    (item.allow_delete || item.size === 0) &&
     (kind.value === 'code' || kind.value === 'text') &&
     item.size <= 2 * 1024 * 1024,
 )
@@ -195,6 +195,11 @@ function handleBackdropClick(event: MouseEvent): void {
 
 function handleKeydown(event: KeyboardEvent): void {
   if (!item) return
+  if (isEditing.value && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+    event.preventDefault()
+    void saveText()
+    return
+  }
   const tag = document.activeElement?.tagName
   if (tag === 'INPUT' || tag === 'TEXTAREA') return
   if (event.key === 'ArrowLeft') {
