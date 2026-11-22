@@ -111,17 +111,20 @@ onBeforeUnmount(() => {
             autocomplete="off"
             maxlength="128"
           />
-          <kbd v-if="!hasSearchText" class="search-kbd" aria-hidden="true">/</kbd>
-          <button
-            v-else
-            type="button"
-            class="search-clear"
-            aria-label="清除搜索"
-            title="清除搜索"
-            @click="clearSearch"
-          >
-            <X :size="14" :stroke-width="2" />
-          </button>
+          <Transition name="search-tail" mode="out-in">
+            <kbd v-if="!hasSearchText" key="kbd" class="search-kbd" aria-hidden="true">/</kbd>
+            <button
+              v-else
+              key="clear"
+              type="button"
+              class="search-clear"
+              aria-label="清除搜索"
+              title="清除搜索"
+              @click="clearSearch"
+            >
+              <X :size="14" :stroke-width="2" />
+            </button>
+          </Transition>
         </div>
       </div>
 
@@ -133,8 +136,10 @@ onBeforeUnmount(() => {
           :title="theme === 'dark' ? '切换浅色模式' : '切换深色模式'"
           @click="toggleTheme"
         >
-          <Sun v-if="theme === 'dark'" :size="16" :stroke-width="1.7" />
-          <Moon v-else :size="16" :stroke-width="1.7" />
+          <Transition name="theme-icon" mode="out-in">
+            <Sun v-if="theme === 'dark'" key="sun" :size="16" :stroke-width="1.7" />
+            <Moon v-else key="moon" :size="16" :stroke-width="1.7" />
+          </Transition>
         </button>
 
         <button
@@ -173,6 +178,9 @@ onBeforeUnmount(() => {
   background: var(--bg-glass);
   backdrop-filter: blur(16px) saturate(160%);
   border-bottom: 1px solid var(--border);
+  transition:
+    background-color var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard);
 }
 
 .topbar-inner {
@@ -200,6 +208,11 @@ onBeforeUnmount(() => {
   font-weight: 700;
   letter-spacing: -0.02em;
   flex-shrink: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+.brand:hover {
+  opacity: 0.84;
 }
 
 .brand-name {
@@ -243,6 +256,9 @@ onBeforeUnmount(() => {
   max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
 }
 
 .crumb-item:hover {
@@ -275,6 +291,11 @@ onBeforeUnmount(() => {
   left: 11px;
   color: var(--text-muted);
   pointer-events: none;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.search-box:focus-within .search-icon {
+  color: var(--text);
 }
 
 .search-box input {
@@ -286,8 +307,9 @@ onBeforeUnmount(() => {
   background: var(--bg-elevated);
   font-size: 13px;
   transition:
-    border-color var(--duration-fast) ease,
-    box-shadow var(--duration-fast) ease;
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
 }
 
 .search-box input:focus {
@@ -321,11 +343,49 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-out);
 }
 
 .search-clear:hover {
   background: var(--bg-hover);
   color: var(--text);
+}
+
+.search-clear:active {
+  transform: scale(0.9);
+}
+
+.search-tail-enter-active,
+.search-tail-leave-active {
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.search-tail-enter-from,
+.search-tail-leave-to {
+  opacity: 0;
+  transform: scale(0.84);
+}
+
+.theme-icon-enter-active,
+.theme-icon-leave-active {
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.theme-icon-enter-from {
+  opacity: 0;
+  transform: rotate(-24deg) scale(0.82);
+}
+
+.theme-icon-leave-to {
+  opacity: 0;
+  transform: rotate(24deg) scale(0.82);
 }
 
 .topbar-right {

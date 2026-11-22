@@ -371,6 +371,7 @@ onBeforeUnmount(() => {
         </button>
 
         <div
+          :key="item.name"
           class="preview-content"
           :class="{
             'is-full': kind === 'pdf' || kind === 'code' || kind === 'text',
@@ -573,6 +574,19 @@ onBeforeUnmount(() => {
   overflow: auto;
   overscroll-behavior: contain;
   padding: 20px;
+  animation: preview-fade var(--duration-fast) var(--ease-out);
+}
+
+@keyframes preview-fade {
+  from {
+    opacity: 0.35;
+    transform: translateY(3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .preview-content.is-media {
@@ -588,7 +602,7 @@ onBeforeUnmount(() => {
   max-height: 100%;
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-md);
-  transition: transform var(--duration-fast) ease;
+  transition: transform var(--duration-base) var(--ease-out);
 }
 
 .preview-video {
@@ -703,10 +717,20 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   box-shadow: var(--shadow-md);
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-out);
 }
 
 .nav-btn:hover {
   background: var(--bg-elevated);
+  border-color: var(--border-strong);
+  transform: translateY(-50%) scale(1.06);
+}
+
+.nav-btn:active {
+  transform: translateY(-50%) scale(0.96);
 }
 
 .is-prev {

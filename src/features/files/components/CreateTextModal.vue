@@ -244,7 +244,9 @@ onBeforeUnmount(() => {
             autocomplete="off"
             @keydown.enter.prevent="focusEditor"
           />
-          <p v-if="validationError" class="field-error" role="alert">{{ validationError }}</p>
+          <Transition name="field-error">
+            <p v-if="validationError" class="field-error" role="alert">{{ validationError }}</p>
+          </Transition>
         </div>
       </div>
 
@@ -355,6 +357,9 @@ onBeforeUnmount(() => {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   color: var(--text-muted);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
 }
 
 .status-badge.is-saved {
@@ -398,6 +403,19 @@ onBeforeUnmount(() => {
   margin: 6px 0 0;
   font-size: 12px;
   color: var(--danger);
+}
+
+.field-error-enter-active,
+.field-error-leave-active {
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.field-error-enter-from,
+.field-error-leave-to {
+  opacity: 0;
+  transform: translateY(-3px);
 }
 
 .text-modal-body {

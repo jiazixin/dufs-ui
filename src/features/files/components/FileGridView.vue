@@ -124,15 +124,19 @@ function handleCardOpen(item: PathItem): void {
   display: flex;
   flex-direction: column;
   transition:
-    transform var(--duration-fast) ease,
-    border-color var(--duration-fast) ease,
-    box-shadow var(--duration-fast) ease;
+    transform var(--duration-base) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-standard);
 }
 
 .grid-card:hover {
   transform: translateY(-2px);
   border-color: var(--border-strong);
   box-shadow: var(--shadow-md);
+}
+
+.grid-card:active {
+  transform: translateY(-1px) scale(0.99);
 }
 
 .grid-thumb {
@@ -151,6 +155,19 @@ function handleCardOpen(item: PathItem): void {
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform var(--duration-slow) var(--ease-out);
+}
+
+.grid-card:hover .grid-thumb img {
+  transform: scale(1.03);
+}
+
+.grid-thumb :deep(.file-icon-thin) {
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+.grid-card:hover .grid-thumb :deep(.file-icon-thin) {
+  transform: scale(1.07);
 }
 
 .grid-overlay-actions {
@@ -160,11 +177,15 @@ function handleCardOpen(item: PathItem): void {
   display: flex;
   gap: 4px;
   opacity: 0;
-  transition: opacity var(--duration-fast) ease;
+  transform: translateY(-2px);
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-out);
 }
 
 .grid-card:hover .grid-overlay-actions {
   opacity: 1;
+  transform: translateY(0);
 }
 
 .overlay-btn {

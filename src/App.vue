@@ -171,15 +171,17 @@ function handleDemoDirClick(item: PathItem): void {
 </script>
 
 <template>
-  <div v-if="upload.isDragOver.value" class="drag-overlay" aria-hidden="true">
-    <div class="drag-card">
-      <div class="drag-icon">
-        <CloudUpload :size="38" :stroke-width="1.6" />
+  <Transition name="overlay-fade">
+    <div v-if="upload.isDragOver.value" class="drag-overlay" aria-hidden="true">
+      <div class="drag-card">
+        <div class="drag-icon">
+          <CloudUpload :size="38" :stroke-width="1.6" />
+        </div>
+        <div class="drag-title">松开鼠标即可上传到当前目录</div>
+        <div class="drag-sub">支持多文件与整个文件夹，自动保留目录结构</div>
       </div>
-      <div class="drag-title">松开鼠标即可上传到当前目录</div>
-      <div class="drag-sub">支持多文件与整个文件夹，自动保留目录结构</div>
     </div>
-  </div>
+  </Transition>
 
   <AppHeader
     v-model:search-query="searchQuery"
@@ -196,13 +198,21 @@ function handleDemoDirClick(item: PathItem): void {
 
   <main class="container">
     <section v-if="data.kind === 'Index'">
-      <DropZoneHero
-        v-if="data.allow_upload && isDropzoneOpen"
-        :share-url="currentBaseUrl"
-        @pick-file="triggerFilePick"
-        @pick-folder="triggerFolderPick"
-        @open-qr="openFolderQr"
-      />
+      <div
+        v-if="data.allow_upload"
+        class="dropzone-collapse"
+        :class="{ 'is-open': isDropzoneOpen }"
+        :aria-hidden="!isDropzoneOpen"
+      >
+        <div class="dropzone-collapse-inner">
+          <DropZoneHero
+            :share-url="currentBaseUrl"
+            @pick-file="triggerFilePick"
+            @pick-folder="triggerFolderPick"
+            @open-qr="openFolderQr"
+          />
+        </div>
+      </div>
 
       <input ref="fileInputRef" type="file" multiple hidden @change="handleFileInputChange" />
       <input
@@ -254,6 +264,11 @@ function handleDemoDirClick(item: PathItem): void {
           </button>
 
           <div class="segmented" role="group" aria-label="视图模式">
+            <span
+              class="seg-indicator"
+              :class="{ 'is-grid': viewMode === 'grid' }"
+              aria-hidden="true"
+            />
             <button
               type="button"
               class="seg-btn"
@@ -278,56 +293,70 @@ function handleDemoDirClick(item: PathItem): void {
         </div>
       </div>
 
-      <div v-if="loadError" class="alert-banner" role="alert">
-        <span>{{ loadError }}</span>
-        <button type="button" class="btn btn-secondary btn-xs" @click="void browser.refreshList()">
-          重试
-        </button>
-      </div>
+      <Transition name="banner-fade">
+        <div v-if="loadError" class="alert-banner" role="alert">
+          <span>{{ loadError }}</span>
+          <button
+            type="button"
+            class="btn btn-secondary btn-xs"
+            @click="void browser.refreshList()"
+          >
+            重试
+          </button>
+        </div>
+      </Transition>
 
       <div class="surface">
-        <div v-if="isLoading && visiblePaths.length === 0" class="state-box">正在加载目录…</div>
-
-        <div v-else-if="visiblePaths.length === 0" class="state-box">
-          <FolderOpen :size="40" :stroke-width="1.3" class="state-icon" aria-hidden="true" />
-          <div class="state-title">{{ emptyTitle }}</div>
-          <div class="state-sub">
-            {{
-              data.allow_upload ? '拖拽文件到页面或按 Ctrl+V 粘贴即可上传' : '此目录暂无可访问内容'
-            }}
+        <Transition name="view-fade" mode="out-in">
+          <div v-if="isLoading && visiblePaths.length === 0" key="loading" class="state-box">
+            正在加载目录…
           </div>
-        </div>
 
-        <FileListTable
-          v-else-if="viewMode === 'list'"
-          :items="visiblePaths"
-          :sort-field="sortField"
-          :sort-order="sortOrder"
-          :allow-archive="data.allow_archive"
-          :is-demo="isDemo"
-          :get-item-url="getItemUrl"
-          @sort="browser.toggleSort"
-          @preview="previewItem = $event"
-          @download="handleDownloadItem"
-          @qr="openItemQr"
-          @copy-link="void copyToClipboard(getItemUrl($event), '下载链接已复制')"
-          @move="void browser.moveItem($event)"
-          @delete="void browser.deleteItem($event)"
-          @demo-dir-click="handleDemoDirClick"
-        />
+          <div v-else-if="visiblePaths.length === 0" key="empty" class="state-box">
+            <FolderOpen :size="40" :stroke-width="1.3" class="state-icon" aria-hidden="true" />
+            <div class="state-title">{{ emptyTitle }}</div>
+            <div class="state-sub">
+              {{
+                data.allow_upload
+                  ? '拖拽文件到页面或按 Ctrl+V 粘贴即可上传'
+                  : '此目录暂无可访问内容'
+              }}
+            </div>
+          </div>
 
-        <FileGridView
-          v-else
-          :items="visiblePaths"
-          :allow-archive="data.allow_archive"
-          :is-demo="isDemo"
-          :get-item-url="getItemUrl"
-          @preview="previewItem = $event"
-          @download="handleDownloadItem"
-          @qr="openItemQr"
-          @delete="void browser.deleteItem($event)"
-          @demo-dir-click="handleDemoDirClick"
-        />
+          <FileListTable
+            v-else-if="viewMode === 'list'"
+            key="list"
+            :items="visiblePaths"
+            :sort-field="sortField"
+            :sort-order="sortOrder"
+            :allow-archive="data.allow_archive"
+            :is-demo="isDemo"
+            :get-item-url="getItemUrl"
+            @sort="browser.toggleSort"
+            @preview="previewItem = $event"
+            @download="handleDownloadItem"
+            @qr="openItemQr"
+            @copy-link="void copyToClipboard(getItemUrl($event), '下载链接已复制')"
+            @move="void browser.moveItem($event)"
+            @delete="void browser.deleteItem($event)"
+            @demo-dir-click="handleDemoDirClick"
+          />
+
+          <FileGridView
+            v-else
+            key="grid"
+            :items="visiblePaths"
+            :allow-archive="data.allow_archive"
+            :is-demo="isDemo"
+            :get-item-url="getItemUrl"
+            @preview="previewItem = $event"
+            @download="handleDownloadItem"
+            @qr="openItemQr"
+            @delete="void browser.deleteItem($event)"
+            @demo-dir-click="handleDemoDirClick"
+          />
+        </Transition>
       </div>
     </section>
 
@@ -391,6 +420,36 @@ function handleDemoDirClick(item: PathItem): void {
   padding: 18px 20px 72px;
 }
 
+.dropzone-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition:
+    grid-template-rows var(--duration-slow) var(--ease-out),
+    opacity var(--duration-base) var(--ease-standard),
+    transform var(--duration-slow) var(--ease-out),
+    visibility 0s linear var(--duration-slow);
+}
+
+.dropzone-collapse.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition:
+    grid-template-rows var(--duration-slow) var(--ease-out),
+    opacity var(--duration-base) var(--ease-standard),
+    transform var(--duration-slow) var(--ease-out),
+    visibility 0s linear 0s;
+}
+
+.dropzone-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
 .action-bar {
   display: flex;
   align-items: center;
@@ -417,11 +476,16 @@ function handleDemoDirClick(item: PathItem): void {
   font-variant-numeric: tabular-nums;
 }
 
+.icon-btn svg {
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
 .is-rotated svg {
   transform: rotate(180deg);
 }
 
 .segmented {
+  position: relative;
   display: inline-flex;
   align-items: center;
   background: var(--bg-subtle);
@@ -431,7 +495,26 @@ function handleDemoDirClick(item: PathItem): void {
   gap: 2px;
 }
 
+.seg-indicator {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 30px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+.seg-indicator.is-grid {
+  transform: translateX(32px);
+}
+
 .seg-btn {
+  position: relative;
+  z-index: 1;
   border: none;
   background: transparent;
   color: var(--text-secondary);
@@ -441,6 +524,7 @@ function handleDemoDirClick(item: PathItem): void {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: color var(--duration-fast) var(--ease-standard);
 }
 
 .seg-btn:hover {
@@ -448,9 +532,7 @@ function handleDemoDirClick(item: PathItem): void {
 }
 
 .seg-btn.is-active {
-  background: var(--bg-elevated);
   color: var(--text);
-  box-shadow: var(--shadow-sm);
 }
 
 .alert-banner {
@@ -523,6 +605,70 @@ function handleDemoDirClick(item: PathItem): void {
   display: flex;
   align-items: center;
   justify-content: center;
+  animation: drag-float 1.8s var(--ease-standard) infinite;
+}
+
+@keyframes drag-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.overlay-fade-enter-active,
+.overlay-fade-leave-active {
+  transition: opacity var(--duration-base) var(--ease-standard);
+}
+
+.overlay-fade-enter-active .drag-card,
+.overlay-fade-leave-active .drag-card {
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+.overlay-fade-enter-from,
+.overlay-fade-leave-to {
+  opacity: 0;
+}
+
+.overlay-fade-enter-from .drag-card,
+.overlay-fade-leave-to .drag-card {
+  transform: scale(0.96) translateY(6px);
+}
+
+.banner-fade-enter-active,
+.banner-fade-leave-active {
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.banner-fade-enter-from,
+.banner-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.view-fade-enter-active {
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.view-fade-leave-active {
+  transition: opacity var(--duration-fast) var(--ease-in);
+}
+
+.view-fade-enter-from {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+.view-fade-leave-to {
+  opacity: 0;
 }
 
 .drag-title {

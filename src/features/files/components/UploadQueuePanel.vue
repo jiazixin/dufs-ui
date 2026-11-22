@@ -54,98 +54,117 @@ function taskRightText(task: UploadTask): string {
 </script>
 
 <template>
-  <aside
-    v-if="tasks.length > 0"
-    class="upload-panel"
-    :class="{ 'is-collapsed': isCollapsed }"
-    aria-label="上传队列"
-  >
-    <div class="panel-header">
-      <button
-        type="button"
-        class="panel-title-btn"
-        :aria-expanded="!isCollapsed"
-        @click="emit('toggleCollapse')"
-      >
-        <span class="spinner" :class="{ 'is-done': activeCount === 0 }" aria-hidden="true" />
-        <span class="panel-title">
-          {{ activeCount > 0 ? `正在上传 (${String(activeCount)})` : '上传完成' }}
-        </span>
-        <span class="panel-summary">
-          {{ doneCount }}/{{ tasks.length }} · {{ overallPercent }}%
-        </span>
-      </button>
-
-      <div class="panel-controls">
-        <button v-if="doneCount > 0" type="button" class="text-btn" @click="emit('clearCompleted')">
-          清除
-        </button>
+  <Transition name="panel-slide">
+    <aside
+      v-if="tasks.length > 0"
+      class="upload-panel"
+      :class="{ 'is-collapsed': isCollapsed }"
+      aria-label="上传队列"
+    >
+      <div class="panel-header">
         <button
           type="button"
-          class="mini-icon-btn"
-          aria-label="展开或收起上传队列"
+          class="panel-title-btn"
+          :aria-expanded="!isCollapsed"
           @click="emit('toggleCollapse')"
         >
-          <ChevronDown :size="14" :stroke-width="2" class="chevron" />
+          <span class="spinner" :class="{ 'is-done': activeCount === 0 }" aria-hidden="true" />
+          <span class="panel-title">
+            {{ activeCount > 0 ? `正在上传 (${String(activeCount)})` : '上传完成' }}
+          </span>
+          <span class="panel-summary">
+            {{ doneCount }}/{{ tasks.length }} · {{ overallPercent }}%
+          </span>
         </button>
-        <button
-          type="button"
-          class="mini-icon-btn"
-          aria-label="关闭上传面板"
-          @click="emit('close')"
-        >
-          <X :size="14" :stroke-width="2" />
-        </button>
-      </div>
-    </div>
 
-    <div class="overall-bar">
-      <div class="overall-fill" :style="{ width: `${String(overallPercent)}%` }" />
-    </div>
-
-    <div v-if="!isCollapsed" class="upload-list">
-      <div v-for="task in tasks" :key="task.id" class="upload-item">
-        <div class="item-top">
-          <span class="item-name" :title="task.name">{{ task.name }}</span>
-          <div class="item-actions">
-            <button
-              v-if="task.state === 'uploading' || task.state === 'queued'"
-              type="button"
-              class="text-btn"
-              @click="emit('cancel', task.id)"
-            >
-              取消
-            </button>
-            <button
-              v-if="task.state === 'error' || task.state === 'canceled'"
-              type="button"
-              class="text-btn"
-              @click="emit('retry', task.id)"
-            >
-              续传重试
-            </button>
-            <template v-if="task.state === 'done'">
-              <button type="button" class="text-btn" @click="emit('qr', task)">二维码</button>
-              <button type="button" class="text-btn" @click="emit('copyLink', task)">复制</button>
-            </template>
-          </div>
-        </div>
-
-        <div class="item-bar">
-          <div
-            class="item-bar-fill"
-            :class="`is-${task.state}`"
-            :style="{ width: `${String(taskPercent(task))}%` }"
-          />
-        </div>
-
-        <div class="item-meta">
-          <span :class="{ 'is-error': task.state === 'error' }">{{ taskLeftText(task) }}</span>
-          <span>{{ taskRightText(task) }}</span>
+        <div class="panel-controls">
+          <button
+            v-if="doneCount > 0"
+            type="button"
+            class="text-btn"
+            @click="emit('clearCompleted')"
+          >
+            清除
+          </button>
+          <button
+            type="button"
+            class="mini-icon-btn"
+            aria-label="展开或收起上传队列"
+            @click="emit('toggleCollapse')"
+          >
+            <ChevronDown :size="14" :stroke-width="2" class="chevron" />
+          </button>
+          <button
+            type="button"
+            class="mini-icon-btn"
+            aria-label="关闭上传面板"
+            @click="emit('close')"
+          >
+            <X :size="14" :stroke-width="2" />
+          </button>
         </div>
       </div>
-    </div>
-  </aside>
+
+      <div class="overall-bar">
+        <div class="overall-fill" :style="{ width: `${String(overallPercent)}%` }" />
+      </div>
+
+      <div
+        class="upload-list-collapse"
+        :class="{ 'is-open': !isCollapsed }"
+        :aria-hidden="isCollapsed"
+      >
+        <div class="upload-list-collapse-inner">
+          <TransitionGroup name="queue-item" tag="div" class="upload-list">
+            <div v-for="task in tasks" :key="task.id" class="upload-item">
+              <div class="item-top">
+                <span class="item-name" :title="task.name">{{ task.name }}</span>
+                <div class="item-actions">
+                  <button
+                    v-if="task.state === 'uploading' || task.state === 'queued'"
+                    type="button"
+                    class="text-btn"
+                    @click="emit('cancel', task.id)"
+                  >
+                    取消
+                  </button>
+                  <button
+                    v-if="task.state === 'error' || task.state === 'canceled'"
+                    type="button"
+                    class="text-btn"
+                    @click="emit('retry', task.id)"
+                  >
+                    续传重试
+                  </button>
+                  <template v-if="task.state === 'done'">
+                    <button type="button" class="text-btn" @click="emit('qr', task)">二维码</button>
+                    <button type="button" class="text-btn" @click="emit('copyLink', task)">
+                      复制
+                    </button>
+                  </template>
+                </div>
+              </div>
+
+              <div class="item-bar">
+                <div
+                  class="item-bar-fill"
+                  :class="`is-${task.state}`"
+                  :style="{ width: `${String(taskPercent(task))}%` }"
+                />
+              </div>
+
+              <div class="item-meta">
+                <span :class="{ 'is-error': task.state === 'error' }">{{
+                  taskLeftText(task)
+                }}</span>
+                <span>{{ taskRightText(task) }}</span>
+              </div>
+            </div>
+          </TransitionGroup>
+        </div>
+      </div>
+    </aside>
+  </Transition>
 </template>
 
 <style scoped>
@@ -192,6 +211,9 @@ function taskRightText(task: UploadTask): string {
   border-radius: var(--radius-pill);
   animation: upload-spin 0.75s linear infinite;
   flex-shrink: 0;
+  transition:
+    background-color var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard);
 }
 
 .spinner.is-done {
@@ -234,12 +256,19 @@ function taskRightText(task: UploadTask): string {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
 }
 
 .text-btn:hover,
 .mini-icon-btn:hover {
   background: var(--hover-tint);
   color: var(--text);
+}
+
+.chevron {
+  transition: transform var(--duration-base) var(--ease-out);
 }
 
 .is-collapsed .chevron {
@@ -254,7 +283,33 @@ function taskRightText(task: UploadTask): string {
 .overall-fill {
   height: 100%;
   background: var(--accent);
-  transition: width var(--duration-base) ease;
+  transition: width var(--duration-base) var(--ease-standard);
+}
+
+.upload-list-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--duration-base) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-standard),
+    visibility 0s linear var(--duration-base);
+}
+
+.upload-list-collapse.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    grid-template-rows var(--duration-base) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-standard),
+    visibility 0s linear 0s;
+}
+
+.upload-list-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
 }
 
 .upload-list {
@@ -308,7 +363,9 @@ function taskRightText(task: UploadTask): string {
   height: 100%;
   border-radius: var(--radius-pill);
   background: var(--accent);
-  transition: width var(--duration-fast) linear;
+  transition:
+    width var(--duration-fast) linear,
+    background-color var(--duration-base) var(--ease-standard);
 }
 
 .item-bar-fill.is-done {
@@ -329,5 +386,44 @@ function taskRightText(task: UploadTask): string {
 
 .is-error {
   color: var(--danger);
+}
+
+.panel-slide-enter-active {
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out);
+}
+
+.panel-slide-leave-active {
+  transition:
+    opacity var(--duration-fast) var(--ease-in),
+    transform var(--duration-fast) var(--ease-in);
+}
+
+.panel-slide-enter-from,
+.panel-slide-leave-to {
+  opacity: 0;
+  transform: translateY(14px) scale(0.98);
+}
+
+.queue-item-enter-active,
+.queue-item-leave-active {
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.queue-item-enter-from {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.queue-item-leave-to {
+  opacity: 0;
+  transform: translateX(8px);
+}
+
+.queue-item-move {
+  transition: transform var(--duration-base) var(--ease-out);
 }
 </style>

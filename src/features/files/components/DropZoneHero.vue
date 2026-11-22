@@ -98,8 +98,9 @@ function onAreaClick(event: MouseEvent): void {
   box-shadow: var(--shadow-sm);
   cursor: pointer;
   transition:
-    border-color var(--duration-base) ease,
-    box-shadow var(--duration-base) ease;
+    border-color var(--duration-base) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-standard),
+    background-color var(--duration-base) var(--ease-standard);
 }
 
 .dropzone-card:hover {
@@ -124,6 +125,11 @@ function onAreaClick(event: MouseEvent): void {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+.dropzone-card:hover .dropzone-badge {
+  transform: translateY(-2px);
 }
 
 .dropzone-title {
@@ -165,15 +171,19 @@ function onAreaClick(event: MouseEvent): void {
   box-shadow: var(--shadow-sm);
   text-align: left;
   transition:
-    border-color var(--duration-fast) ease,
-    transform var(--duration-fast) ease,
-    box-shadow var(--duration-fast) ease;
+    border-color var(--duration-base) var(--ease-standard),
+    transform var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-standard);
 }
 
 .qr-hero-card:hover {
   border-color: var(--accent);
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
+}
+
+.qr-hero-card:active {
+  transform: translateY(0) scale(0.99);
 }
 
 .mini-qr {
@@ -184,6 +194,11 @@ function onAreaClick(event: MouseEvent): void {
   border-radius: var(--radius-sm);
   border: 1px solid var(--qr-border);
   flex-shrink: 0;
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+.qr-hero-card:hover .mini-qr {
+  transform: scale(1.03);
 }
 
 .mini-qr svg {

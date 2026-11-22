@@ -293,7 +293,7 @@ function handleNameClick(event: MouseEvent, item: PathItem): void {
   padding-top: 11px;
   padding-bottom: 11px;
   border-bottom: 1px solid var(--border);
-  transition: background-color var(--duration-fast) ease;
+  transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
 .file-row:last-child {
@@ -310,6 +310,14 @@ function handleNameClick(event: MouseEvent, item: PathItem): void {
   gap: 11px;
   min-width: 0;
   padding-right: 12px;
+}
+
+.file-main :deep(.file-icon-thin) {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.file-row:hover .file-main :deep(.file-icon-thin) {
+  transform: scale(1.06);
 }
 
 .file-name-wrap {
@@ -363,8 +371,8 @@ function handleNameClick(event: MouseEvent, item: PathItem): void {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  opacity: 0.78;
-  transition: opacity var(--duration-fast) ease;
+  opacity: 0.72;
+  transition: opacity var(--duration-fast) var(--ease-standard);
 }
 
 .file-row:hover .file-actions {
