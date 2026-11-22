@@ -65,6 +65,7 @@ const CODE_EXTS = new Set([
 ])
 const CODE_BASENAMES = new Set(['dockerfile', 'makefile', '.env', '.gitignore', '.editorconfig'])
 const TEXT_EXTS = new Set(['.txt', '.md', '.markdown', '.log', '.csv', '.tsv'])
+const TEXT_BASENAMES = new Set(['readme', 'license', 'go.mod', 'go.sum', 'go.work', 'go.work.sum'])
 const DOC_EXTS = new Set(['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'])
 
 export function isDirItem(item: PathItem): boolean {
@@ -87,7 +88,7 @@ export function detectFileKind(item: PathItem): FileKind {
   if (PDF_EXTS.has(ext)) return 'pdf'
   if (ARCHIVE_EXTS.has(ext)) return 'archive'
   if (isCodeFileName(item.name)) return 'code'
-  if (TEXT_EXTS.has(ext) || lower === 'readme' || lower === 'license') return 'text'
+  if (TEXT_EXTS.has(ext) || TEXT_BASENAMES.has(lower)) return 'text'
   if (DOC_EXTS.has(ext)) return 'doc'
   return 'file'
 }
