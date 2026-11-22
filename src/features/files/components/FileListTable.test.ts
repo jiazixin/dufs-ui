@@ -46,7 +46,7 @@ describe('FileListTable', () => {
     expect(view.emitted().sort).toEqual([['mtime'], ['size']])
   })
 
-  it('emits preview and qr events for files', async () => {
+  it('previews files by clicking the filename and omits the redundant preview icon button', async () => {
     const user = userEvent.setup()
     const view = render(FileListTable, {
       props: {
@@ -59,10 +59,24 @@ describe('FileListTable', () => {
       },
     })
 
-    await user.click(screen.getByRole('button', { name: '预览 README.md' }))
+    expect(screen.queryByRole('button', { name: '预览 README.md' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: 'README.md' }))
     await user.click(screen.getByRole('button', { name: '二维码分享 README.md' }))
 
-    expect(view.emitted().preview).toHaveLength(1)
-    expect(view.emitted().qr).toHaveLength(1)
+    expect(view.emitted().preview).toEqual([[SAMPLE_ITEMS[1]]])
+    expect(view.emitted().qr).toEqual([[SAMPLE_ITEMS[1]]])
+
+    const rows = view.container.querySelectorAll('.file-row')
+    const fileActionLabels = Array.from(
+      rows[1]?.querySelectorAll('.file-actions button') ?? [],
+    ).map((btn) => btn.getAttribute('aria-label'))
+    expect(fileActionLabels).toEqual([
+      '下载 README.md',
+      '二维码分享 README.md',
+      '复制 README.md 链接',
+      '重命名或移动 README.md',
+      '删除 README.md',
+    ])
   })
 })

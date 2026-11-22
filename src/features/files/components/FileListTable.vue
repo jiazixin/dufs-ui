@@ -4,7 +4,6 @@ import {
   ArrowUp,
   ArrowUpDown,
   Download,
-  Eye,
   Link2,
   Pencil,
   QrCode,
@@ -157,17 +156,6 @@ function handleNameClick(event: MouseEvent, item: PathItem): void {
 
         <div class="file-actions" role="cell">
           <button
-            v-if="!isDirItem(item)"
-            type="button"
-            class="icon-btn-sm"
-            :aria-label="`预览 ${item.name}`"
-            title="弹窗预览"
-            @click="emit('preview', item)"
-          >
-            <Eye :size="15" :stroke-width="1.7" />
-          </button>
-
-          <button
             v-if="!isDirItem(item) || allowArchive"
             type="button"
             class="icon-btn-sm"
@@ -230,7 +218,7 @@ function handleNameClick(event: MouseEvent, item: PathItem): void {
 .list-head,
 .file-row {
   display: grid;
-  grid-template-columns: minmax(190px, 420px) 168px 112px minmax(196px, 1fr);
+  grid-template-columns: minmax(190px, 420px) 168px 112px minmax(168px, 1fr);
   align-items: center;
   padding: 10px 18px;
 }
@@ -382,7 +370,7 @@ function handleNameClick(event: MouseEvent, item: PathItem): void {
 @media (width <= 900px) {
   .list-head,
   .file-row {
-    grid-template-columns: minmax(140px, 1fr) 84px 192px;
+    grid-template-columns: minmax(140px, 1fr) 84px 168px;
   }
 
   .col-mtime,
