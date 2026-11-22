@@ -123,6 +123,9 @@ function handleSubmit(): void {
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
@@ -146,6 +149,7 @@ function handleSubmit(): void {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  overflow-y: auto;
 }
 
 .dialog-message {

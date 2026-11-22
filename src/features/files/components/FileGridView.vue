@@ -113,7 +113,7 @@ function handleCardOpen(item: PathItem): void {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(172px, 1fr));
   gap: 14px;
-  padding: 16px;
+  padding: 16px 16px 24px;
 }
 
 .grid-card {
@@ -226,7 +226,7 @@ function handleCardOpen(item: PathItem): void {
   .grid-view {
     grid-template-columns: repeat(auto-fill, minmax(144px, 1fr));
     gap: 10px;
-    padding: 12px;
+    padding: 12px 12px 20px;
   }
 
   .grid-overlay-actions {

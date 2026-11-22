@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import {
   ChevronUp,
   CloudUpload,
@@ -51,6 +51,8 @@ const {
 } = browser
 
 const isDropzoneOpen = ref(window.localStorage.getItem(DROPZONE_KEY) !== '0')
+const isDropzoneAnimating = ref(false)
+let dropzoneTimer: number | null = null
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const folderInputRef = ref<HTMLInputElement | null>(null)
 const previewItem = ref<PathItem | null>(null)
@@ -88,10 +90,39 @@ const emptyTitle = computed(() => {
   return data.value.dir_exists ? '当前目录为空' : '上传文件后将自动创建此目录'
 })
 
-function toggleDropzone(): void {
-  isDropzoneOpen.value = !isDropzoneOpen.value
-  window.localStorage.setItem(DROPZONE_KEY, isDropzoneOpen.value ? '1' : '0')
+function clearDropzoneTimer(): void {
+  if (dropzoneTimer !== null) {
+    window.clearTimeout(dropzoneTimer)
+    dropzoneTimer = null
+  }
 }
+
+function finishDropzoneAnimation(): void {
+  clearDropzoneTimer()
+  isDropzoneAnimating.value = false
+}
+
+function handleDropzoneTransitionEnd(event: TransitionEvent): void {
+  if (event.target !== event.currentTarget) return
+  if (event.propertyName === 'grid-template-rows') {
+    finishDropzoneAnimation()
+  }
+}
+
+function toggleDropzone(): void {
+  clearDropzoneTimer()
+  const nextOpen = !isDropzoneOpen.value
+  isDropzoneAnimating.value = nextOpen
+  isDropzoneOpen.value = nextOpen
+  window.localStorage.setItem(DROPZONE_KEY, nextOpen ? '1' : '0')
+  if (nextOpen) {
+    dropzoneTimer = window.setTimeout(finishDropzoneAnimation, 320)
+  }
+}
+
+onBeforeUnmount(() => {
+  clearDropzoneTimer()
+})
 
 function triggerFilePick(): void {
   const input = fileInputRef.value
@@ -201,8 +232,9 @@ function handleDemoDirClick(item: PathItem): void {
       <div
         v-if="data.allow_upload"
         class="dropzone-collapse"
-        :class="{ 'is-open': isDropzoneOpen }"
+        :class="{ 'is-open': isDropzoneOpen, 'is-animating': isDropzoneAnimating }"
         :aria-hidden="!isDropzoneOpen"
+        @transitionend="handleDropzoneTransitionEnd"
       >
         <div class="dropzone-collapse-inner">
           <DropZoneHero
@@ -448,6 +480,10 @@ function handleDemoDirClick(item: PathItem): void {
 .dropzone-collapse-inner {
   overflow: hidden;
   min-height: 0;
+}
+
+.dropzone-collapse.is-open:not(.is-animating) .dropzone-collapse-inner {
+  overflow: visible;
 }
 
 .action-bar {

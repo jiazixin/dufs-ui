@@ -186,6 +186,9 @@ function handleBackdropClick(event: MouseEvent): void {
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
@@ -217,6 +220,7 @@ function handleBackdropClick(event: MouseEvent): void {
   flex-direction: column;
   align-items: center;
   gap: 16px;
+  overflow-y: auto;
 }
 
 .qr-frame {

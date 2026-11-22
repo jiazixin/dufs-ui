@@ -234,6 +234,8 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 4px;
   min-width: 0;
+  padding: 4px 2px;
+  margin: -4px -2px;
   overflow-x: auto;
   scrollbar-width: none;
 }
