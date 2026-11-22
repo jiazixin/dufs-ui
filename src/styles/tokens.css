@@ -46,6 +46,32 @@
   --ft-doc: #2563eb;
   --ft-file: #71717a;
 
+  /* Language brand icon colors */
+  --lang-on-brand: #fff;
+  --lang-py: #306998;
+  --lang-py-2: #e5b822;
+  --lang-go: #0097bd;
+  --lang-java: #d9480f;
+  --lang-java-cup: #2b6cb0;
+  --lang-ts: #2f74c0;
+  --lang-js-bg: #f7df1e;
+  --lang-js-fg: #18181b;
+  --lang-rs: #c2410c;
+  --lang-vue: #2f9e6e;
+  --lang-vue-2: #35495e;
+  --lang-cpp: #00599c;
+  --lang-html: #dc4a25;
+  --lang-css: #1b73ba;
+  --lang-json: #b45309;
+  --lang-yaml: #be185d;
+  --lang-sh: #15803d;
+  --lang-sql: #4f46e5;
+  --lang-docker: #0284c7;
+  --lang-kt: #7c3aed;
+  --lang-swift: #e84d31;
+  --lang-rb: #cc2927;
+  --lang-php: #6167a6;
+
   /* Special surfaces */
   --qr-bg: #fff;
   --qr-fg: #111;
@@ -132,6 +158,28 @@
   --ft-text: #38bdf8;
   --ft-doc: #60a5fa;
   --ft-file: #a1a1aa;
+
+  --lang-py: #5ca4df;
+  --lang-py-2: #ffd43b;
+  --lang-go: #29d3f2;
+  --lang-java: #fb923c;
+  --lang-java-cup: #60a5fa;
+  --lang-ts: #58a6ff;
+  --lang-rs: #f97316;
+  --lang-vue: #42d392;
+  --lang-vue-2: #8fa6bc;
+  --lang-cpp: #60a5fa;
+  --lang-html: #fb714c;
+  --lang-css: #38bdf8;
+  --lang-json: #fbbf24;
+  --lang-yaml: #f472b6;
+  --lang-sh: #4ade80;
+  --lang-sql: #818cf8;
+  --lang-docker: #38bdf8;
+  --lang-kt: #a78bfa;
+  --lang-swift: #fb7156;
+  --lang-rb: #f87171;
+  --lang-php: #9fa6e8;
 
   --qr-border: rgb(255 255 255 / 12%);
   --overlay-bg: rgb(0 0 0 / 68%);

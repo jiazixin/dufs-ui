@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectFileKind, isCodeFileName } from './file-types'
+import { detectCodeIconLang, detectFileKind, isCodeFileName } from './file-types'
 import type { PathItem } from './types'
 
 function fileItem(name: string): PathItem {
@@ -8,6 +8,17 @@ function fileItem(name: string): PathItem {
     name,
     mtime: 0,
     size: 128,
+    allow_upload: true,
+    allow_delete: true,
+  }
+}
+
+function dirItem(name: string): PathItem {
+  return {
+    path_type: 'Dir',
+    name,
+    mtime: 0,
+    size: 4,
     allow_upload: true,
     allow_delete: true,
   }
@@ -34,5 +45,23 @@ describe('file-types', () => {
     expect(detectFileKind(fileItem('GNUmakefile'))).toBe('code')
     expect(isCodeFileName('go.mod')).toBe(false)
     expect(detectFileKind(fileItem('archive.bin'))).toBe('file')
+  })
+
+  it('maps recognizable code files to brand icon languages and falls back safely', () => {
+    expect(detectCodeIconLang(fileItem('train.py'))).toBe('python')
+    expect(detectCodeIconLang(fileItem('SERVER.GO'))).toBe('go')
+    expect(detectCodeIconLang(fileItem('OrderService.java'))).toBe('java')
+    expect(detectCodeIconLang(fileItem('use-file-browser.ts'))).toBe('ts')
+    expect(detectCodeIconLang(fileItem('vite.config.mjs'))).toBe('js')
+    expect(detectCodeIconLang(fileItem('lib.rs'))).toBe('rust')
+    expect(detectCodeIconLang(fileItem('FileIcon.vue'))).toBe('vue')
+    expect(detectCodeIconLang(fileItem('main.c'))).toBe('c')
+    expect(detectCodeIconLang(fileItem('codec.cpp'))).toBe('cpp')
+    expect(detectCodeIconLang(fileItem('Dockerfile'))).toBe('docker')
+    expect(detectCodeIconLang(fileItem('Dockerfile.prod'))).toBe('docker')
+    expect(detectCodeIconLang(fileItem('deploy.sh'))).toBe('sh')
+    expect(detectCodeIconLang(fileItem('dufs.toml'))).toBeNull()
+    expect(detectCodeIconLang(fileItem('Makefile'))).toBeNull()
+    expect(detectCodeIconLang(dirItem('main.py'))).toBeNull()
   })
 })

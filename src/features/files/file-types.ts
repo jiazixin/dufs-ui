@@ -1,5 +1,5 @@
 import { getExtName } from '../../lib/url'
-import type { FileKind, PathItem } from './types'
+import type { CodeIconLang, FileKind, PathItem } from './types'
 
 const IMAGE_EXTS = new Set([
   '.png',
@@ -75,6 +75,46 @@ const TEXT_EXTS = new Set(['.txt', '.md', '.markdown', '.log', '.csv', '.tsv'])
 const TEXT_BASENAMES = new Set(['readme', 'license', 'go.mod', 'go.sum', 'go.work', 'go.work.sum'])
 const DOC_EXTS = new Set(['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'])
 
+const CODE_ICON_BY_EXT: Readonly<Record<string, CodeIconLang>> = {
+  '.py': 'python',
+  '.go': 'go',
+  '.java': 'java',
+  '.ts': 'ts',
+  '.tsx': 'ts',
+  '.js': 'js',
+  '.mjs': 'js',
+  '.cjs': 'js',
+  '.jsx': 'js',
+  '.rs': 'rust',
+  '.vue': 'vue',
+  '.c': 'c',
+  '.h': 'c',
+  '.cpp': 'cpp',
+  '.cc': 'cpp',
+  '.cxx': 'cpp',
+  '.hpp': 'cpp',
+  '.html': 'html',
+  '.htm': 'html',
+  '.css': 'css',
+  '.scss': 'css',
+  '.less': 'css',
+  '.sass': 'css',
+  '.json': 'json',
+  '.jsonc': 'json',
+  '.yaml': 'yaml',
+  '.yml': 'yaml',
+  '.sh': 'sh',
+  '.bash': 'sh',
+  '.zsh': 'sh',
+  '.sql': 'sql',
+  '.dockerfile': 'docker',
+  '.kt': 'kotlin',
+  '.kts': 'kotlin',
+  '.swift': 'swift',
+  '.rb': 'ruby',
+  '.php': 'php',
+}
+
 export function isDirItem(item: PathItem): boolean {
   return item.path_type === 'Dir' || item.path_type === 'SymlinkDir'
 }
@@ -88,6 +128,16 @@ export function isCodeFileName(filename: string): boolean {
     lower.startsWith('.env.') ||
     lower.startsWith('dockerfile.')
   )
+}
+
+export function detectCodeIconLang(item: PathItem): CodeIconLang | null {
+  if (isDirItem(item)) return null
+  const lower = item.name.toLowerCase()
+  if (lower === 'dockerfile' || lower.startsWith('dockerfile.')) {
+    return 'docker'
+  }
+  const ext = getExtName(item.name)
+  return CODE_ICON_BY_EXT[ext] ?? null
 }
 
 export function detectFileKind(item: PathItem): FileKind {

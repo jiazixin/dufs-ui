@@ -11,8 +11,9 @@ import {
   FileVideo,
   Folder,
 } from '@lucide/vue'
-import { detectFileKind } from '../file-types'
-import type { FileKind, PathItem } from '../types'
+import { detectCodeIconLang, detectFileKind } from '../file-types'
+import type { CodeIconLang, FileKind, PathItem } from '../types'
+import CodeBrandIcon from './CodeBrandIcon.vue'
 
 const { item, size = 20 } = defineProps<{
   item: PathItem
@@ -20,6 +21,9 @@ const { item, size = 20 } = defineProps<{
 }>()
 
 const kind = computed<FileKind>(() => detectFileKind(item))
+const codeLang = computed<CodeIconLang | null>(() =>
+  kind.value === 'code' ? detectCodeIconLang(item) : null,
+)
 </script>
 
 <template>
@@ -30,6 +34,7 @@ const kind = computed<FileKind>(() => detectFileKind(item))
     <FileAudio v-else-if="kind === 'audio'" :size="size" :stroke-width="1.6" />
     <FileText v-else-if="kind === 'pdf' || kind === 'text'" :size="size" :stroke-width="1.6" />
     <FileArchive v-else-if="kind === 'archive'" :size="size" :stroke-width="1.6" />
+    <CodeBrandIcon v-else-if="kind === 'code' && codeLang" :lang="codeLang" :size="size" />
     <FileCode v-else-if="kind === 'code'" :size="size" :stroke-width="1.6" />
     <FileSpreadsheet v-else-if="kind === 'doc'" :size="size" :stroke-width="1.6" />
     <File v-else :size="size" :stroke-width="1.6" />

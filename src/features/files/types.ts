@@ -35,6 +35,28 @@ export type ViewMode = 'list' | 'grid'
 export type FileKind =
   'dir' | 'image' | 'video' | 'audio' | 'pdf' | 'archive' | 'code' | 'text' | 'doc' | 'file'
 
+export type CodeIconLang =
+  | 'python'
+  | 'go'
+  | 'java'
+  | 'ts'
+  | 'js'
+  | 'rust'
+  | 'vue'
+  | 'c'
+  | 'cpp'
+  | 'html'
+  | 'css'
+  | 'json'
+  | 'yaml'
+  | 'sh'
+  | 'sql'
+  | 'docker'
+  | 'kotlin'
+  | 'swift'
+  | 'ruby'
+  | 'php'
+
 export type UploadTaskState = 'queued' | 'uploading' | 'done' | 'error' | 'canceled'
 
 export type UploadTask = {
