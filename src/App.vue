@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watchEffect } from 'vue'
 import {
   ChevronUp,
   CloudUpload,
@@ -28,7 +28,7 @@ import type { PathItem, QrTarget, UploadTask } from './features/files/types'
 import { useFileBrowser } from './features/files/use-file-browser'
 import { useUploadQueue } from './features/files/use-upload-queue'
 import { formatBytes } from './lib/format/format-bytes'
-import { ensureTrailingSlash, getBaseName } from './lib/url'
+import { ensureTrailingSlash, getBaseName, getFileName } from './lib/url'
 
 const DROPZONE_KEY = 'dufs_ui_dropzone'
 
@@ -88,6 +88,24 @@ const statsLabel = computed(() => {
 const emptyTitle = computed(() => {
   if (searchQuery.value.trim()) return '没有找到匹配的文件'
   return data.value.dir_exists ? '当前目录为空' : '上传文件后将自动创建此目录'
+})
+
+watchEffect(() => {
+  const { kind, href } = data.value
+  if (kind === 'Edit') {
+    document.title = `编辑 ${href} · DropHub`
+    return
+  }
+  if (kind === 'View') {
+    document.title = `查看 ${href} · DropHub`
+    return
+  }
+  const q = searchQuery.value.trim()
+  if (q) {
+    document.title = `搜索「${q}」 · ${href} · DropHub`
+    return
+  }
+  document.title = href === '/' ? 'DropHub · Dufs' : `${href} · DropHub`
 })
 
 function clearDropzoneTimer(): void {
@@ -159,11 +177,12 @@ function openCreateTextModal(): void {
 
 function handleDownloadItem(item: PathItem): void {
   const url = getItemUrl(item)
+  const downloadName = getFileName(item.name) || item.name
   if (isDirItem(item)) {
-    void browser.triggerDownload(`${ensureTrailingSlash(url)}?zip`, `${item.name}.zip`)
+    void browser.triggerDownload(`${ensureTrailingSlash(url)}?zip`, `${downloadName}.zip`)
     return
   }
-  void browser.triggerDownload(url, item.name)
+  void browser.triggerDownload(url, downloadName)
 }
 
 function handleDownloadFolderZip(): void {
@@ -184,7 +203,7 @@ function openFolderQr(): void {
   qrTarget.value = {
     title: data.value.href === '/' ? '根目录' : getBaseName(data.value.href),
     url: currentBaseUrl.value,
-    allowToken: false,
+    allowToken: data.value.kind !== 'Index',
   }
 }
 
@@ -222,6 +241,7 @@ function handleDemoDirClick(item: PathItem): void {
     :auth="data.auth"
     :user="user"
     :is-demo="isDemo"
+    :qr-label="data.kind === 'Index' ? '当前目录二维码分享' : '当前文件二维码分享'"
     @open-folder-qr="openFolderQr"
     @login="void browser.login()"
     @logout="void browser.logout()"
@@ -396,8 +416,11 @@ function handleDemoDirClick(item: PathItem): void {
     <StandaloneEditor
       v-else
       :data="data"
+      :ensure-auth="browser.checkAuth"
       @open-qr="(title, url) => (qrTarget = { title, url, allowToken: true })"
       @download="(url, name) => void browser.triggerDownload(url, name)"
+      @move="void browser.moveCurrentFile()"
+      @delete="void browser.deleteCurrentFile()"
     />
   </main>
 
@@ -421,6 +444,7 @@ function handleDemoDirClick(item: PathItem): void {
     :siblings="previewSiblings"
     :is-demo="isDemo"
     :get-item-url="getItemUrl"
+    :ensure-auth="browser.checkAuth"
     @close="previewItem = null"
     @select="previewItem = $event"
     @download="handleDownloadItem"

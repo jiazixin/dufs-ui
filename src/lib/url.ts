@@ -23,12 +23,19 @@ export function getBaseName(url: string): string {
   return last ? decodeURIComponent(last) : '/'
 }
 
+export function getFileName(path: string): string {
+  const trimmed = path.endsWith('/') ? path.slice(0, -1) : path
+  const slash = trimmed.lastIndexOf('/')
+  return slash >= 0 ? trimmed.slice(slash + 1) : trimmed
+}
+
 export function getExtName(filename: string): string {
-  const dot = filename.lastIndexOf('.')
-  if (dot <= 0 || dot === filename.length - 1) {
+  const base = getFileName(filename)
+  const dot = base.lastIndexOf('.')
+  if (dot <= 0 || dot === base.length - 1) {
     return ''
   }
-  return filename.slice(dot).toLowerCase()
+  return base.slice(dot).toLowerCase()
 }
 
 export function isSameOriginUrl(target: string): boolean {

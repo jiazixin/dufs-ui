@@ -64,4 +64,14 @@ describe('file-types', () => {
     expect(detectCodeIconLang(fileItem('Makefile'))).toBeNull()
     expect(detectCodeIconLang(dirItem('main.py'))).toBeNull()
   })
+
+  it('recognizes basenames and extensions inside nested search result paths', () => {
+    expect(detectFileKind(fileItem('编程语言/golang/go.mod'))).toBe('text')
+    expect(detectFileKind(fileItem('v1.0/README'))).toBe('text')
+    expect(detectFileKind(fileItem('services/api/Dockerfile.prod'))).toBe('code')
+    expect(detectFileKind(fileItem('app/.env.local'))).toBe('code')
+    expect(isCodeFileName('services/api/Dockerfile.prod')).toBe(true)
+    expect(detectCodeIconLang(fileItem('services/api/Dockerfile.prod'))).toBe('docker')
+    expect(detectCodeIconLang(fileItem('v1.0/README'))).toBeNull()
+  })
 })

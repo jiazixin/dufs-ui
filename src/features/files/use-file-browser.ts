@@ -3,7 +3,7 @@ import { api, logoutRequest } from '../../app/api'
 import { openConfirm, openPrompt } from '../../app/dialog'
 import { errorText } from '../../app/errors'
 import { showToast } from '../../app/toast'
-import { ensureTrailingSlash, getBaseUrl, joinRelativeUrl } from '../../lib/url'
+import { ensureTrailingSlash, getBaseName, getBaseUrl, joinRelativeUrl } from '../../lib/url'
 import { demoContentStore, loadInitialDufsData, normalizePathItems } from './dufs-data'
 import { FILE_ERROR_MESSAGES } from './file-errors'
 import { isDirItem } from './file-types'
@@ -138,6 +138,9 @@ export function useFileBrowser() {
         dir_exists?: boolean
         allow_upload?: boolean
         allow_delete?: boolean
+        allow_search?: boolean
+        allow_archive?: boolean
+        user?: string | null
       }>(`${getBaseUrl()}?${qs.toString()}`, { signal })
       const nextAllowUpload =
         typeof result.allow_upload === 'boolean' ? result.allow_upload : data.value.allow_upload
@@ -149,10 +152,15 @@ export function useFileBrowser() {
           allowDelete: nextAllowDelete,
         })
       }
+      if (typeof result.user === 'string' || result.user === null) {
+        user.value = result.user ?? ''
+      }
       if (
         typeof result.dir_exists === 'boolean' ||
         typeof result.allow_upload === 'boolean' ||
-        typeof result.allow_delete === 'boolean'
+        typeof result.allow_delete === 'boolean' ||
+        typeof result.allow_search === 'boolean' ||
+        typeof result.allow_archive === 'boolean'
       ) {
         data.value = {
           ...data.value,
@@ -160,6 +168,14 @@ export function useFileBrowser() {
             typeof result.dir_exists === 'boolean' ? result.dir_exists : data.value.dir_exists,
           allow_upload: nextAllowUpload,
           allow_delete: nextAllowDelete,
+          allow_search:
+            typeof result.allow_search === 'boolean'
+              ? result.allow_search
+              : data.value.allow_search,
+          allow_archive:
+            typeof result.allow_archive === 'boolean'
+              ? result.allow_archive
+              : data.value.allow_archive,
         }
       }
     } catch (error: unknown) {
@@ -328,8 +344,7 @@ export function useFileBrowser() {
     }
   }
 
-  async function moveItem(item: PathItem): Promise<void> {
-    const fileUrl = getRelativeUrl(item.name)
+  async function promptAndMoveUrl(fileUrl: string): Promise<string | null> {
     const urlObj = new URL(fileUrl)
     const prefix = data.value.uri_prefix.slice(0, -1)
     const currentPath = decodeURIComponent(urlObj.pathname.slice(prefix.length))
@@ -340,18 +355,13 @@ export function useFileBrowser() {
       initialValue: currentPath,
       confirmText: '保存',
     })
-    if (!rawNext) return
+    if (!rawNext) return null
 
     const nextPath = rawNext.startsWith('/') ? rawNext : `/${rawNext}`
-    if (nextPath === currentPath) return
+    if (nextPath === currentPath) return null
 
     if (isDemo) {
-      const nextName = nextPath.split('/').filter(Boolean).pop() ?? item.name
-      paths.value = paths.value.map((entry) =>
-        entry.name === item.name ? { ...entry, name: nextName } : entry,
-      )
-      showToast('已重命名', 'success')
-      return
+      return nextPath
     }
 
     const nextUrl = `${urlObj.origin}${prefix}${nextPath.split('/').map(encodeURIComponent).join('/')}`
@@ -371,18 +381,43 @@ export function useFileBrowser() {
           confirmText: '覆盖',
           isDanger: true,
         })
-        if (!confirmed) return
+        if (!confirmed) return null
       }
       await api<undefined>(fileUrl, {
         method: 'MOVE',
         headers: { Destination: nextUrl },
         responseType: 'void',
       })
-      await refreshList()
-      showToast('移动/重命名成功', 'success')
+      return nextUrl
     } catch (error: unknown) {
       showToast(errorText(error, FILE_ERROR_MESSAGES), 'error')
+      return null
     }
+  }
+
+  async function moveItem(item: PathItem): Promise<void> {
+    const movedTarget = await promptAndMoveUrl(getRelativeUrl(item.name))
+    if (!movedTarget) return
+
+    if (isDemo) {
+      const nextName = movedTarget.split('/').filter(Boolean).pop() ?? item.name
+      paths.value = paths.value.map((entry) =>
+        entry.name === item.name ? { ...entry, name: nextName } : entry,
+      )
+      showToast('已重命名', 'success')
+      return
+    }
+
+    await refreshList()
+    showToast('移动/重命名成功', 'success')
+  }
+
+  async function moveCurrentFile(): Promise<void> {
+    if (isDemo) return
+    const currentUrl = getBaseUrl()
+    const nextUrl = await promptAndMoveUrl(currentUrl)
+    if (!nextUrl) return
+    window.location.href = `${nextUrl}${window.location.search}`
   }
 
   async function deleteItem(item: PathItem): Promise<void> {
@@ -405,6 +440,28 @@ export function useFileBrowser() {
       await api<undefined>(getRelativeUrl(item.name), { method: 'DELETE', responseType: 'void' })
       paths.value = paths.value.filter((entry) => entry.name !== item.name)
       showToast(`已删除「${item.name}」`, 'success')
+    } catch (error: unknown) {
+      showToast(errorText(error, FILE_ERROR_MESSAGES), 'error')
+    }
+  }
+
+  async function deleteCurrentFile(): Promise<void> {
+    if (isDemo) return
+    const currentUrl = getBaseUrl()
+    const name = getBaseName(currentUrl)
+    const confirmed = await openConfirm({
+      title: '确认删除',
+      message: `确定要永久删除「${name}」吗？此操作无法撤销。`,
+      confirmText: '删除',
+      isDanger: true,
+    })
+    if (!confirmed) return
+
+    try {
+      await checkAuth()
+      await api<undefined>(currentUrl, { method: 'DELETE', responseType: 'void' })
+      const parentUrl = currentUrl.split('/').slice(0, -1).join('/')
+      window.location.href = ensureTrailingSlash(parentUrl || window.location.origin)
     } catch (error: unknown) {
       showToast(errorText(error, FILE_ERROR_MESSAGES), 'error')
     }
@@ -479,7 +536,9 @@ export function useFileBrowser() {
     createFolder,
     saveTextFile,
     moveItem,
+    moveCurrentFile,
     deleteItem,
+    deleteCurrentFile,
     generateTokenUrl,
     triggerDownload,
     addDemoUploadedItem,

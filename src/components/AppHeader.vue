@@ -4,13 +4,22 @@ import { Moon, QrCode, Search, Sun, X } from '@lucide/vue'
 import { useTheme } from '../app/theme'
 import BrandLogo from './BrandLogo.vue'
 
-const { href, uriPrefix, allowSearch, auth, user, isDemo } = defineProps<{
+const {
+  href,
+  uriPrefix,
+  allowSearch,
+  auth,
+  user,
+  isDemo,
+  qrLabel = '当前目录二维码分享',
+} = defineProps<{
   href: string
   uriPrefix: string
   allowSearch: boolean
   auth: boolean
   user: string
   isDemo: boolean
+  qrLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -145,8 +154,8 @@ onBeforeUnmount(() => {
         <button
           type="button"
           class="icon-btn"
-          aria-label="当前目录二维码分享"
-          title="当前目录二维码分享"
+          :aria-label="qrLabel"
+          :title="qrLabel"
           @click="emit('openFolderQr')"
         >
           <QrCode :size="16" :stroke-width="1.7" />

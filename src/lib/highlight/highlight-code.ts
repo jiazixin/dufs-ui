@@ -1,4 +1,4 @@
-import { getExtName } from '../url'
+import { getExtName, getFileName } from '../url'
 
 export type TokenKind =
   | 'plain'
@@ -932,7 +932,8 @@ function pushToken(tokens: HighlightToken[], kind: TokenKind, text: string): voi
 }
 
 export function detectCodeLanguage(filename: string): CodeLanguageMeta {
-  const lower = filename.toLowerCase()
+  const base = getFileName(filename)
+  const lower = base.toLowerCase()
   if (lower === 'dockerfile' || lower.startsWith('dockerfile.')) {
     return { id: 'dockerfile', label: LANGUAGE_LABELS.dockerfile }
   }
@@ -948,7 +949,7 @@ export function detectCodeLanguage(filename: string): CodeLanguageMeta {
     return { id: 'ini', label: LANGUAGE_LABELS.ini }
   }
 
-  const ext = getExtName(filename)
+  const ext = getExtName(base)
   const id = EXT_TO_LANGUAGE[ext] ?? 'plain'
   return { id, label: LANGUAGE_LABELS[id] }
 }

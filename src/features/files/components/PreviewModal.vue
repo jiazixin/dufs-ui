@@ -13,6 +13,7 @@ import {
   X,
 } from '@lucide/vue'
 import { api } from '../../../app/api'
+import { openConfirm } from '../../../app/dialog'
 import { errorText } from '../../../app/errors'
 import { useScrollLock } from '../../../app/scroll-lock'
 import { showToast } from '../../../app/toast'
@@ -26,11 +27,18 @@ import type { PathItem } from '../types'
 import CodeViewer from './CodeViewer.vue'
 import FileIcon from './FileIcon.vue'
 
-const { item, siblings, isDemo, getItemUrl } = defineProps<{
+const {
+  item,
+  siblings,
+  isDemo,
+  getItemUrl,
+  ensureAuth = async () => {},
+} = defineProps<{
   item: PathItem | null
   siblings: readonly PathItem[]
   isDemo: boolean
   getItemUrl: (target: PathItem) => string
+  ensureAuth?: () => Promise<void>
 }>()
 
 const emit = defineEmits<{
@@ -50,6 +58,7 @@ const textContent = ref('')
 const isEditing = ref(false)
 const editDraft = ref('')
 const isSaving = ref(false)
+const isConfirmingDiscard = ref(false)
 
 let triggerElement: HTMLElement | null = null
 
@@ -57,6 +66,13 @@ useScrollLock(() => item !== null)
 
 const kind = computed(() => (item ? detectFileKind(item) : 'file'))
 const itemUrl = computed(() => (item ? getItemUrl(item) : ''))
+const canOpenStandaloneEdit = computed(() =>
+  Boolean(item && item.allow_upload && item.allow_delete),
+)
+const standaloneOpenUrl = computed(() =>
+  itemUrl.value ? `${itemUrl.value}?${canOpenStandaloneEdit.value ? 'edit' : 'view'}` : '',
+)
+const hasUnsavedEdit = computed(() => isEditing.value && editDraft.value !== textContent.value)
 const mediaSrc = computed(() => {
   if (!item) return ''
   if (isDemo) {
@@ -131,8 +147,25 @@ watch(
   },
 )
 
-function step(delta: number): void {
+async function confirmDiscardIfNeeded(): Promise<boolean> {
+  if (!hasUnsavedEdit.value) return true
+  if (isConfirmingDiscard.value) return false
+  isConfirmingDiscard.value = true
+  try {
+    return await openConfirm({
+      title: '放弃未保存的修改？',
+      message: '当前文件修改尚未保存，继续操作将丢失这些改动。',
+      confirmText: '放弃修改',
+      isDanger: true,
+    })
+  } finally {
+    isConfirmingDiscard.value = false
+  }
+}
+
+async function step(delta: number): Promise<void> {
   if (!canNavigate.value) return
+  if (!(await confirmDiscardIfNeeded())) return
   const nextIdx = (currentIndex.value + delta + siblings.length) % siblings.length
   const next = siblings[nextIdx]
   if (next) emit('select', next)
@@ -150,13 +183,14 @@ function toggleImageDoubleZoom(): void {
   zoom.value = zoom.value === 1 ? 1.75 : 1
 }
 
-function toggleEdit(): void {
+async function toggleEdit(): Promise<void> {
   if (!isEditing.value) {
     editDraft.value = textContent.value
     isEditing.value = true
-  } else {
-    isEditing.value = false
+    return
   }
+  if (!(await confirmDiscardIfNeeded())) return
+  isEditing.value = false
 }
 
 async function saveText(): Promise<void> {
@@ -170,6 +204,7 @@ async function saveText(): Promise<void> {
       showToast('演示模式：已保存修改', 'success')
       return
     }
+    await ensureAuth()
     await api<undefined>(getItemUrl(item), {
       method: 'PUT',
       body: editDraft.value,
@@ -186,14 +221,20 @@ async function saveText(): Promise<void> {
   }
 }
 
+async function requestClose(): Promise<void> {
+  if (isSaving.value) return
+  if (!(await confirmDiscardIfNeeded())) return
+  emit('close')
+}
+
 function handleCancel(event: Event): void {
   event.preventDefault()
-  emit('close')
+  void requestClose()
 }
 
 function handleBackdropClick(event: MouseEvent): void {
   if (event.target === dialogRef.value) {
-    emit('close')
+    void requestClose()
   }
 }
 
@@ -208,10 +249,10 @@ function handleKeydown(event: KeyboardEvent): void {
   if (tag === 'INPUT' || tag === 'TEXTAREA') return
   if (event.key === 'ArrowLeft') {
     event.preventDefault()
-    step(-1)
+    void step(-1)
   } else if (event.key === 'ArrowRight') {
     event.preventDefault()
-    step(1)
+    void step(1)
   } else if (kind.value === 'image') {
     if (event.key === '+' || event.key === '=') adjustZoom(0.25)
     else if (event.key === '-') adjustZoom(-0.25)
@@ -295,7 +336,7 @@ onBeforeUnmount(() => {
               v-if="canEditText"
               type="button"
               class="btn btn-secondary btn-xs"
-              @click="toggleEdit"
+              @click="void toggleEdit()"
             >
               {{ isEditing ? '取消' : '编辑' }}
             </button>
@@ -351,7 +392,7 @@ onBeforeUnmount(() => {
             class="icon-btn-sm"
             aria-label="关闭预览"
             title="关闭 (Esc)"
-            @click="emit('close')"
+            @click="void requestClose()"
           >
             <X :size="16" :stroke-width="1.8" />
           </button>
@@ -365,7 +406,7 @@ onBeforeUnmount(() => {
           class="nav-btn is-prev"
           aria-label="上一个文件"
           title="上一个 (←)"
-          @click="step(-1)"
+          @click="void step(-1)"
         >
           <ChevronLeft :size="20" :stroke-width="1.8" />
         </button>
@@ -443,6 +484,15 @@ onBeforeUnmount(() => {
               <button type="button" class="btn btn-primary" @click="emit('download', item)">
                 下载文件
               </button>
+              <a
+                v-if="!isDemo && standaloneOpenUrl"
+                class="btn btn-secondary"
+                :href="standaloneOpenUrl"
+                target="_blank"
+                rel="noopener"
+              >
+                {{ canOpenStandaloneEdit ? '在线编辑打开' : '按文本打开' }}
+              </a>
               <button type="button" class="btn btn-secondary" @click="emit('qr', item)">
                 二维码分享
               </button>
@@ -456,7 +506,7 @@ onBeforeUnmount(() => {
           class="nav-btn is-next"
           aria-label="下一个文件"
           title="下一个 (→)"
-          @click="step(1)"
+          @click="void step(1)"
         >
           <ChevronRight :size="20" :stroke-width="1.8" />
         </button>
@@ -698,6 +748,8 @@ onBeforeUnmount(() => {
 
 .fallback-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
 }
 

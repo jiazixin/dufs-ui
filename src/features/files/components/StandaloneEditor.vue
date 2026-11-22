@@ -6,17 +6,20 @@ import { showToast } from '../../../app/toast'
 import { detectCodeLanguage } from '../../../lib/highlight/highlight-code'
 import { getBaseName, getBaseUrl } from '../../../lib/url'
 import { FILE_ERROR_MESSAGES } from '../file-errors'
-import { isCodeFileName } from '../file-types'
+import { detectFileKind, isCodeFileName } from '../file-types'
 import type { DufsData } from '../types'
 import CodeViewer from './CodeViewer.vue'
 
-const { data } = defineProps<{
+const { data, ensureAuth = async () => {} } = defineProps<{
   data: DufsData
+  ensureAuth?: () => Promise<void>
 }>()
 
 const emit = defineEmits<{
   openQr: [title: string, url: string]
   download: [url: string, filename: string]
+  move: []
+  delete: []
 }>()
 
 const fileUrl = getBaseUrl()
@@ -27,8 +30,18 @@ const loadError = ref<string | null>(null)
 const isSaving = ref(false)
 
 const canSave = data.kind === 'Edit' && data.editable && data.allow_upload
+const canMove = data.kind === 'Edit' && data.allow_upload && data.allow_delete
+const canDelete = data.kind === 'Edit' && data.allow_delete
 const isCodeFile = isCodeFileName(fileName)
 const codeLanguageLabel = isCodeFile ? detectCodeLanguage(fileName).label : ''
+const mediaKind = detectFileKind({
+  path_type: 'File',
+  name: fileName,
+  mtime: 0,
+  size: 0,
+  allow_upload: false,
+  allow_delete: false,
+})
 
 async function loadFile(): Promise<void> {
   if (!data.editable) return
@@ -47,6 +60,7 @@ async function saveFile(): Promise<void> {
   if (!canSave || isSaving.value) return
   isSaving.value = true
   try {
+    await ensureAuth()
     await api<undefined>(fileUrl, { method: 'PUT', body: content.value, responseType: 'void' })
     showToast('文件已保存', 'success')
   } catch (error: unknown) {
@@ -92,6 +106,17 @@ onBeforeUnmount(() => {
         >
           下载
         </button>
+        <button v-if="canMove" type="button" class="btn btn-secondary" @click="emit('move')">
+          重命名 / 移动
+        </button>
+        <button
+          v-if="canDelete"
+          type="button"
+          class="btn btn-secondary is-danger-btn"
+          @click="emit('delete')"
+        >
+          删除
+        </button>
         <button
           v-if="canSave"
           type="button"
@@ -105,7 +130,33 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="editor-body surface">
-      <div v-if="!data.editable" class="editor-state">该文件为二进制或体积过大，无法在线编辑</div>
+      <template v-if="!data.editable">
+        <div v-if="mediaKind === 'image'" class="editor-media">
+          <img class="editor-media-img" :src="fileUrl" :alt="fileName" />
+        </div>
+        <div v-else-if="mediaKind === 'video'" class="editor-media">
+          <video class="editor-media-video" :src="fileUrl" controls playsinline />
+        </div>
+        <div v-else-if="mediaKind === 'audio'" class="editor-media">
+          <audio class="editor-media-audio" :src="fileUrl" controls />
+        </div>
+        <iframe
+          v-else-if="mediaKind === 'pdf'"
+          class="editor-media-iframe"
+          :src="fileUrl"
+          :title="fileName"
+        />
+        <div v-else class="editor-state">
+          <div>该文件为二进制或体积过大，无法在线编辑</div>
+          <button
+            type="button"
+            class="btn btn-primary"
+            @click="emit('download', fileUrl, fileName)"
+          >
+            下载文件
+          </button>
+        </div>
+      </template>
       <div v-else-if="isLoading" class="editor-state">正在加载文件…</div>
       <div v-else-if="loadError" class="editor-state" role="alert">
         <div>{{ loadError }}</div>
@@ -179,7 +230,49 @@ onBeforeUnmount(() => {
 
 .editor-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.is-danger-btn:hover {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.editor-media {
+  flex: 1;
+  min-height: calc(100vh - 170px);
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editor-media-img {
+  max-width: 100%;
+  max-height: calc(100vh - 220px);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+
+.editor-media-video {
+  max-width: 100%;
+  max-height: calc(100vh - 220px);
+  border-radius: var(--radius-md);
+  background: var(--media-bg);
+}
+
+.editor-media-audio {
+  width: min(440px, 100%);
+}
+
+.editor-media-iframe {
+  flex: 1;
+  width: 100%;
+  min-height: calc(100vh - 170px);
+  border: none;
+  background: var(--iframe-bg);
 }
 
 .editor-body {

@@ -230,7 +230,7 @@ function handleNameClick(event: MouseEvent, item: PathItem): void {
 .list-head,
 .file-row {
   display: grid;
-  grid-template-columns: minmax(190px, 420px) 168px 112px minmax(190px, 1fr);
+  grid-template-columns: minmax(190px, 420px) 168px 112px minmax(196px, 1fr);
   align-items: center;
   padding: 10px 18px;
 }
@@ -382,7 +382,7 @@ function handleNameClick(event: MouseEvent, item: PathItem): void {
 @media (width <= 900px) {
   .list-head,
   .file-row {
-    grid-template-columns: minmax(140px, 1fr) 92px 148px;
+    grid-template-columns: minmax(140px, 1fr) 84px 192px;
   }
 
   .col-mtime,
@@ -392,13 +392,33 @@ function handleNameClick(event: MouseEvent, item: PathItem): void {
 }
 
 @media (width <= 640px) {
-  .list-head,
+  .list-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 9px 12px;
+  }
+
+  .col-actions {
+    display: none;
+  }
+
   .file-row {
-    grid-template-columns: minmax(110px, 1fr) 74px 108px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 10px;
     padding: 10px 12px;
   }
 
+  .file-main {
+    padding-right: 0;
+  }
+
+  .file-size {
+    text-align: right;
+  }
+
   .file-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    gap: 4px;
     opacity: 1;
   }
 }

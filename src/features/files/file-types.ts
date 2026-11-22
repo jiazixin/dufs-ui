@@ -1,4 +1,4 @@
-import { getExtName } from '../../lib/url'
+import { getExtName, getFileName } from '../../lib/url'
 import type { CodeIconLang, FileKind, PathItem } from './types'
 
 const IMAGE_EXTS = new Set([
@@ -120,8 +120,9 @@ export function isDirItem(item: PathItem): boolean {
 }
 
 export function isCodeFileName(filename: string): boolean {
-  const ext = getExtName(filename)
-  const lower = filename.toLowerCase()
+  const base = getFileName(filename)
+  const ext = getExtName(base)
+  const lower = base.toLowerCase()
   return (
     CODE_EXTS.has(ext) ||
     CODE_BASENAMES.has(lower) ||
@@ -132,24 +133,26 @@ export function isCodeFileName(filename: string): boolean {
 
 export function detectCodeIconLang(item: PathItem): CodeIconLang | null {
   if (isDirItem(item)) return null
-  const lower = item.name.toLowerCase()
+  const base = getFileName(item.name)
+  const lower = base.toLowerCase()
   if (lower === 'dockerfile' || lower.startsWith('dockerfile.')) {
     return 'docker'
   }
-  const ext = getExtName(item.name)
+  const ext = getExtName(base)
   return CODE_ICON_BY_EXT[ext] ?? null
 }
 
 export function detectFileKind(item: PathItem): FileKind {
   if (isDirItem(item)) return 'dir'
-  const ext = getExtName(item.name)
-  const lower = item.name.toLowerCase()
+  const base = getFileName(item.name)
+  const ext = getExtName(base)
+  const lower = base.toLowerCase()
   if (IMAGE_EXTS.has(ext)) return 'image'
   if (VIDEO_EXTS.has(ext)) return 'video'
   if (AUDIO_EXTS.has(ext)) return 'audio'
   if (PDF_EXTS.has(ext)) return 'pdf'
   if (ARCHIVE_EXTS.has(ext)) return 'archive'
-  if (isCodeFileName(item.name)) return 'code'
+  if (isCodeFileName(base)) return 'code'
   if (TEXT_EXTS.has(ext) || TEXT_BASENAMES.has(lower)) return 'text'
   if (DOC_EXTS.has(ext)) return 'doc'
   return 'file'
