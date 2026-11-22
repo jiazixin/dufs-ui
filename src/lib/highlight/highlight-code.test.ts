@@ -112,4 +112,29 @@ describe('tokenizeCode', () => {
     expect(lines).toHaveLength(2)
     expect(lines.map(joinLineText)).toEqual(['const a = 1', 'const b = 2'])
   })
+
+  it('preserves exact whitespace in config lines and splits top-level array/table commas safely', () => {
+    const yaml = 'services:   # section comment'
+    const yamlLines = tokenizeCode(yaml, 'yaml')
+    expect(yamlLines.map(joinLineText)).toEqual([yaml])
+
+    const toml = ['args = ["a,b", "c"]', 'matrix = [[1, 2], [3, 4]]'].join('\n')
+    const tomlLines = tokenizeCode(toml, 'toml')
+    expect(tomlLines.map(joinLineText).join('\n')).toBe(toml)
+    expect(findTokenKind(tomlLines[0] ?? { number: 1, tokens: [] }, '"a,b"')).toBe('string')
+    expect(findTokenKind(tomlLines[0] ?? { number: 1, tokens: [] }, '"c"')).toBe('string')
+    expect(findTokenKind(tomlLines[1] ?? { number: 2, tokens: [] }, '1')).toBe('number')
+    expect(findTokenKind(tomlLines[1] ?? { number: 2, tokens: [] }, '4')).toBe('number')
+  })
+
+  it('handles > inside quoted Vue/HTML attribute values without truncating the tag', () => {
+    const vue = '<button :disabled="count > 0" @click="() => save()">Save</button>'
+    const lines = tokenizeCode(vue, 'vue')
+    expect(lines.map(joinLineText)).toEqual([vue])
+    expect(findTokenKind(lines[0] ?? { number: 1, tokens: [] }, 'button')).toBe('section')
+    expect(findTokenKind(lines[0] ?? { number: 1, tokens: [] }, ':disabled')).toBe('key')
+    expect(findTokenKind(lines[0] ?? { number: 1, tokens: [] }, '"count > 0"')).toBe('string')
+    expect(findTokenKind(lines[0] ?? { number: 1, tokens: [] }, '@click')).toBe('key')
+    expect(findTokenKind(lines[0] ?? { number: 1, tokens: [] }, '"() => save()"')).toBe('string')
+  })
 })

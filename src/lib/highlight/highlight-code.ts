@@ -979,6 +979,82 @@ function findUnquotedCommentIndex(raw: string, markers: readonly string[]): numb
   return -1
 }
 
+function splitTopLevelComma(inner: string): string[] {
+  const parts: string[] = []
+  let quote: string | null = null
+  let depth = 0
+  let start = 0
+
+  for (let i = 0; i < inner.length; i++) {
+    const ch = inner[i]
+    if (!ch) continue
+    if (quote) {
+      if (ch === '\\' && quote === '"') {
+        i++
+        continue
+      }
+      if (ch === quote) {
+        quote = null
+      }
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch
+      continue
+    }
+    if (ch === '[' || ch === '{') {
+      depth++
+      continue
+    }
+    if ((ch === ']' || ch === '}') && depth > 0) {
+      depth--
+      continue
+    }
+    if (ch === ',' && depth === 0) {
+      parts.push(inner.slice(start, i))
+      start = i + 1
+    }
+  }
+
+  parts.push(inner.slice(start))
+  return parts
+}
+
+function consumeBlockComment(line: string, state: LineScanState, tokens: HighlightToken[]): number {
+  if (!state.blockCommentEnd) return 0
+  const endIdx = line.indexOf(state.blockCommentEnd)
+  if (endIdx === -1) {
+    pushToken(tokens, 'comment', line)
+    return -1
+  }
+  const endPos = endIdx + state.blockCommentEnd.length
+  pushToken(tokens, 'comment', line.slice(0, endPos))
+  state.blockCommentEnd = null
+  return endPos
+}
+
+function findTagCloseIndex(line: string, start: number): number {
+  let quote: string | null = null
+  for (let i = start; i < line.length; i++) {
+    const ch = line[i]
+    if (!ch) continue
+    if (quote) {
+      if (ch === quote) {
+        quote = null
+      }
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch
+      continue
+    }
+    if (ch === '>') {
+      return i
+    }
+  }
+  return -1
+}
+
 function tokenizeConfigValue(raw: string, language: 'yaml' | 'toml' | 'ini'): HighlightToken[] {
   const tokens: HighlightToken[] = []
   const markers = language === 'ini' ? ['#', ';'] : ['#']
@@ -987,64 +1063,68 @@ function tokenizeConfigValue(raw: string, language: 'yaml' | 'toml' | 'ini'): Hi
   const commentPart = commentIdx === -1 ? '' : raw.slice(commentIdx)
 
   const trimmed = valuePart.trim()
+  if (trimmed.length === 0) {
+    if (valuePart) pushToken(tokens, 'plain', valuePart)
+    if (commentPart) pushToken(tokens, 'comment', commentPart)
+    return tokens
+  }
+
   const leadLen = valuePart.length - valuePart.trimStart().length
   const trailLen = valuePart.length - valuePart.trimEnd().length
   if (leadLen > 0) pushToken(tokens, 'plain', valuePart.slice(0, leadLen))
 
-  if (trimmed.length > 0) {
-    if (
-      (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
-      (trimmed.startsWith('{') && trimmed.endsWith('}'))
-    ) {
-      pushToken(tokens, 'punct', trimmed.slice(0, 1))
-      const inner = trimmed.slice(1, -1)
-      const parts = inner.split(',')
-      for (let idx = 0; idx < parts.length; idx++) {
-        const part = parts[idx] ?? ''
-        const eqIdx = part.indexOf('=')
-        const colonIdx = part.indexOf(':')
-        const sepIdx = eqIdx !== -1 ? eqIdx : colonIdx
-        if (trimmed.startsWith('{') && sepIdx > 0) {
-          pushToken(tokens, 'key', part.slice(0, sepIdx))
-          pushToken(tokens, 'punct', part.slice(sepIdx, sepIdx + 1))
-          for (const sub of tokenizeConfigValue(part.slice(sepIdx + 1), language)) {
-            pushToken(tokens, sub.kind, sub.text)
-          }
-        } else {
-          for (const sub of tokenizeConfigValue(part, language)) {
-            pushToken(tokens, sub.kind, sub.text)
-          }
+  if (
+    (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+    (trimmed.startsWith('{') && trimmed.endsWith('}'))
+  ) {
+    pushToken(tokens, 'punct', trimmed.slice(0, 1))
+    const inner = trimmed.slice(1, -1)
+    const parts = splitTopLevelComma(inner)
+    for (let idx = 0; idx < parts.length; idx++) {
+      const part = parts[idx] ?? ''
+      const eqIdx = part.indexOf('=')
+      const colonIdx = part.indexOf(':')
+      const sepIdx = eqIdx !== -1 ? eqIdx : colonIdx
+      if (trimmed.startsWith('{') && sepIdx > 0) {
+        pushToken(tokens, 'key', part.slice(0, sepIdx))
+        pushToken(tokens, 'punct', part.slice(sepIdx, sepIdx + 1))
+        for (const sub of tokenizeConfigValue(part.slice(sepIdx + 1), language)) {
+          pushToken(tokens, sub.kind, sub.text)
         }
-        if (idx < parts.length - 1) {
-          pushToken(tokens, 'punct', ',')
+      } else {
+        for (const sub of tokenizeConfigValue(part, language)) {
+          pushToken(tokens, sub.kind, sub.text)
         }
       }
-      pushToken(tokens, 'punct', trimmed.slice(-1))
-    } else if (
-      (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) ||
-      (trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length >= 2)
-    ) {
-      pushToken(tokens, 'string', trimmed)
-    } else if (
-      language === 'yaml' &&
-      (trimmed.startsWith('&') || trimmed.startsWith('*') || trimmed.startsWith('!'))
-    ) {
-      pushToken(tokens, 'meta', trimmed)
-    } else if (
-      (language === 'yaml' && YAML_BOOLEANS.has(trimmed.toLowerCase())) ||
-      (language !== 'yaml' && BOOLEAN_LITERALS.has(trimmed.toLowerCase()))
-    ) {
-      pushToken(tokens, 'boolean', trimmed)
-    } else if (/^-?(?:0x[0-9a-fA-F_]+|\d[\d_]*(?:\.\d[\d_]*)?(?:[eE][+-]?\d+)?)$/.test(trimmed)) {
-      pushToken(tokens, 'number', trimmed)
-    } else if (
-      language === 'toml' &&
-      /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)?$/.test(trimmed)
-    ) {
-      pushToken(tokens, 'number', trimmed)
-    } else {
-      pushToken(tokens, 'string', trimmed)
+      if (idx < parts.length - 1) {
+        pushToken(tokens, 'punct', ',')
+      }
     }
+    pushToken(tokens, 'punct', trimmed.slice(-1))
+  } else if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length >= 2)
+  ) {
+    pushToken(tokens, 'string', trimmed)
+  } else if (
+    language === 'yaml' &&
+    (trimmed.startsWith('&') || trimmed.startsWith('*') || trimmed.startsWith('!'))
+  ) {
+    pushToken(tokens, 'meta', trimmed)
+  } else if (
+    (language === 'yaml' && YAML_BOOLEANS.has(trimmed.toLowerCase())) ||
+    (language !== 'yaml' && BOOLEAN_LITERALS.has(trimmed.toLowerCase()))
+  ) {
+    pushToken(tokens, 'boolean', trimmed)
+  } else if (/^-?(?:0x[0-9a-fA-F_]+|\d[\d_]*(?:\.\d[\d_]*)?(?:[eE][+-]?\d+)?)$/.test(trimmed)) {
+    pushToken(tokens, 'number', trimmed)
+  } else if (
+    language === 'toml' &&
+    /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)?$/.test(trimmed)
+  ) {
+    pushToken(tokens, 'number', trimmed)
+  } else {
+    pushToken(tokens, 'string', trimmed)
   }
 
   if (trailLen > 0) pushToken(tokens, 'plain', valuePart.slice(valuePart.length - trailLen))
@@ -1144,19 +1224,9 @@ function tokenizeConfigLine(line: string, language: 'yaml' | 'toml' | 'ini'): Hi
 
 function tokenizeJsonLine(line: string, state: LineScanState): HighlightToken[] {
   const tokens: HighlightToken[] = []
-  let i = 0
+  let i = consumeBlockComment(line, state, tokens)
+  if (i === -1) return tokens
   const len = line.length
-
-  if (state.blockCommentEnd) {
-    const endIdx = line.indexOf(state.blockCommentEnd)
-    if (endIdx === -1) {
-      return [{ kind: 'comment', text: line }]
-    }
-    const endPos = endIdx + state.blockCommentEnd.length
-    pushToken(tokens, 'comment', line.slice(0, endPos))
-    state.blockCommentEnd = null
-    i = endPos
-  }
 
   while (i < len) {
     const ch = line[i]
@@ -1234,19 +1304,9 @@ function tokenizeJsonLine(line: string, state: LineScanState): HighlightToken[] 
 
 function tokenizeMarkupLine(line: string, state: LineScanState): HighlightToken[] {
   const tokens: HighlightToken[] = []
-  let i = 0
+  let i = consumeBlockComment(line, state, tokens)
+  if (i === -1) return tokens
   const len = line.length
-
-  if (state.blockCommentEnd) {
-    const endIdx = line.indexOf(state.blockCommentEnd)
-    if (endIdx === -1) {
-      return [{ kind: 'comment', text: line }]
-    }
-    const endPos = endIdx + state.blockCommentEnd.length
-    pushToken(tokens, 'comment', line.slice(0, endPos))
-    state.blockCommentEnd = null
-    i = endPos
-  }
 
   while (i < len) {
     if (line.startsWith('<!--', i)) {
@@ -1262,7 +1322,7 @@ function tokenizeMarkupLine(line: string, state: LineScanState): HighlightToken[
     }
 
     if (line[i] === '<') {
-      const closeIdx = line.indexOf('>', i + 1)
+      const closeIdx = findTagCloseIndex(line, i + 1)
       const tagEnd = closeIdx === -1 ? len : closeIdx + 1
       const segment = line.slice(i, tagEnd)
       let t = 0
@@ -1336,19 +1396,9 @@ function tokenizeMarkupLine(line: string, state: LineScanState): HighlightToken[
 
 function tokenizeCssLine(line: string, state: LineScanState): HighlightToken[] {
   const tokens: HighlightToken[] = []
-  let i = 0
+  let i = consumeBlockComment(line, state, tokens)
+  if (i === -1) return tokens
   const len = line.length
-
-  if (state.blockCommentEnd) {
-    const endIdx = line.indexOf(state.blockCommentEnd)
-    if (endIdx === -1) {
-      return [{ kind: 'comment', text: line }]
-    }
-    const endPos = endIdx + state.blockCommentEnd.length
-    pushToken(tokens, 'comment', line.slice(0, endPos))
-    state.blockCommentEnd = null
-    i = endPos
-  }
 
   while (i < len) {
     const ch = line[i]
@@ -1482,19 +1532,9 @@ function tokenizeProgrammingLine(
   state: LineScanState,
 ): HighlightToken[] {
   const tokens: HighlightToken[] = []
-  let i = 0
+  let i = consumeBlockComment(line, state, tokens)
+  if (i === -1) return tokens
   const len = line.length
-
-  if (state.blockCommentEnd) {
-    const endIdx = line.indexOf(state.blockCommentEnd)
-    if (endIdx === -1) {
-      return [{ kind: 'comment', text: line }]
-    }
-    const endPos = endIdx + state.blockCommentEnd.length
-    pushToken(tokens, 'comment', line.slice(0, endPos))
-    state.blockCommentEnd = null
-    i = endPos
-  }
 
   if (state.tripleQuote) {
     const marker = state.tripleQuote.repeat(3)

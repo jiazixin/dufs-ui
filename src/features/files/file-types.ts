@@ -63,7 +63,14 @@ const CODE_EXTS = new Set([
   '.properties',
   '.dockerfile',
 ])
-const CODE_BASENAMES = new Set(['dockerfile', 'makefile', '.env', '.gitignore', '.editorconfig'])
+const CODE_BASENAMES = new Set([
+  'dockerfile',
+  'makefile',
+  'gnumakefile',
+  '.env',
+  '.gitignore',
+  '.editorconfig',
+])
 const TEXT_EXTS = new Set(['.txt', '.md', '.markdown', '.log', '.csv', '.tsv'])
 const TEXT_BASENAMES = new Set(['readme', 'license', 'go.mod', 'go.sum', 'go.work', 'go.work.sum'])
 const DOC_EXTS = new Set(['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'])
@@ -75,7 +82,12 @@ export function isDirItem(item: PathItem): boolean {
 export function isCodeFileName(filename: string): boolean {
   const ext = getExtName(filename)
   const lower = filename.toLowerCase()
-  return CODE_EXTS.has(ext) || CODE_BASENAMES.has(lower) || lower.startsWith('.env.')
+  return (
+    CODE_EXTS.has(ext) ||
+    CODE_BASENAMES.has(lower) ||
+    lower.startsWith('.env.') ||
+    lower.startsWith('dockerfile.')
+  )
 }
 
 export function detectFileKind(item: PathItem): FileKind {
