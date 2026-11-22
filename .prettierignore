@@ -1,0 +1,5 @@
+dist/
+node_modules/
+package-lock.json
+Web代码规范.md
+Vue代码规范.md
