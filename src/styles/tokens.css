@@ -55,6 +55,29 @@
   --overlay-bg: rgb(9 9 11 / 54%);
   --hover-tint: rgb(127 127 127 / 16%);
 
+  /* Tokyo Night Code Canvas */
+  --code-bg: #1a1b26;
+  --code-gutter-bg: #16161e;
+  --code-border: #292e42;
+  --code-line-hover: rgb(192 202 245 / 5%);
+  --code-line-num: #565f89;
+  --code-text: #c0caf5;
+  --code-caret: #7aa2f7;
+  --code-selection: rgb(122 162 247 / 24%);
+  --code-badge-bg: rgb(122 162 247 / 12%);
+  --code-badge-text: #7aa2f7;
+  --tok-comment: #565f89;
+  --tok-keyword: #bb9af7;
+  --tok-func: #7aa2f7;
+  --tok-section: #f7768e;
+  --tok-type: #2ac3de;
+  --tok-key: #7dcfff;
+  --tok-string: #9ece6a;
+  --tok-number: #ff9e64;
+  --tok-boolean: #ff9e64;
+  --tok-meta: #e0af68;
+  --tok-punct: #89ddff;
+
   /* Geometry & Elevation */
   --radius-xs: 5px;
   --radius-sm: 8px;

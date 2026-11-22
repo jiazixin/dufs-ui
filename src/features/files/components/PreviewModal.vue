@@ -23,6 +23,7 @@ import { demoContentStore } from '../dufs-data'
 import { FILE_ERROR_MESSAGES } from '../file-errors'
 import { detectFileKind } from '../file-types'
 import type { PathItem } from '../types'
+import CodeViewer from './CodeViewer.vue'
 import FileIcon from './FileIcon.vue'
 
 const { item, siblings, isDemo, getItemUrl } = defineProps<{
@@ -419,9 +420,11 @@ onBeforeUnmount(() => {
               v-else-if="isEditing"
               v-model="editDraft"
               class="preview-editor"
+              :class="{ 'is-code': kind === 'code' }"
               spellcheck="false"
               aria-label="编辑文件内容"
             />
+            <CodeViewer v-else-if="kind === 'code'" :code="textContent" :filename="item.name" />
             <pre v-else class="preview-code">{{ textContent }}</pre>
           </template>
 
@@ -648,6 +651,16 @@ onBeforeUnmount(() => {
   outline: none;
   resize: none;
   overscroll-behavior: contain;
+}
+
+.preview-editor.is-code {
+  background: var(--code-bg);
+  color: var(--code-text);
+  caret-color: var(--code-caret);
+}
+
+.preview-editor.is-code::selection {
+  background: var(--code-selection);
 }
 
 .fallback-box {

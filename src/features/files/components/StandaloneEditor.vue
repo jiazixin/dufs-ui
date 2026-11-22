@@ -3,9 +3,12 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { api } from '../../../app/api'
 import { errorText } from '../../../app/errors'
 import { showToast } from '../../../app/toast'
+import { detectCodeLanguage } from '../../../lib/highlight/highlight-code'
 import { getBaseName, getBaseUrl } from '../../../lib/url'
 import { FILE_ERROR_MESSAGES } from '../file-errors'
+import { isCodeFileName } from '../file-types'
 import type { DufsData } from '../types'
+import CodeViewer from './CodeViewer.vue'
 
 const { data } = defineProps<{
   data: DufsData
@@ -24,6 +27,8 @@ const loadError = ref<string | null>(null)
 const isSaving = ref(false)
 
 const canSave = data.kind === 'Edit' && data.editable && data.allow_upload
+const isCodeFile = isCodeFileName(fileName)
+const codeLanguageLabel = isCodeFile ? detectCodeLanguage(fileName).label : ''
 
 async function loadFile(): Promise<void> {
   if (!data.editable) return
@@ -74,6 +79,7 @@ onBeforeUnmount(() => {
       <div class="editor-info">
         <span class="editor-name">{{ fileName }}</span>
         <span class="mode-badge">{{ data.kind === 'Edit' ? '编辑模式' : '只读查看' }}</span>
+        <span v-if="isCodeFile" class="lang-badge">{{ codeLanguageLabel }}</span>
       </div>
       <div class="editor-actions">
         <button type="button" class="btn btn-secondary" @click="emit('openQr', fileName, fileUrl)">
@@ -105,10 +111,17 @@ onBeforeUnmount(() => {
         <div>{{ loadError }}</div>
         <button type="button" class="btn btn-secondary" @click="void loadFile()">重试</button>
       </div>
+      <CodeViewer
+        v-else-if="!canSave && isCodeFile"
+        class="editor-code-viewer"
+        :code="content"
+        :filename="fileName"
+      />
       <textarea
         v-else
         v-model="content"
         class="editor-textarea"
+        :class="{ 'is-code': isCodeFile }"
         :readonly="!canSave"
         spellcheck="false"
         aria-label="文本编辑器"
@@ -152,6 +165,18 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
+.lang-badge {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--code-border);
+  background: var(--code-bg);
+  color: var(--code-badge-text);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
 .editor-actions {
   display: flex;
   gap: 8px;
@@ -161,6 +186,11 @@ onBeforeUnmount(() => {
   min-height: calc(100vh - 170px);
   display: flex;
   flex-direction: column;
+}
+
+.editor-code-viewer {
+  flex: 1;
+  min-height: calc(100vh - 170px);
 }
 
 .editor-state {
@@ -186,5 +216,15 @@ onBeforeUnmount(() => {
   line-height: 1.65;
   background: transparent;
   color: var(--text);
+}
+
+.editor-textarea.is-code {
+  background: var(--code-bg);
+  color: var(--code-text);
+  caret-color: var(--code-caret);
+}
+
+.editor-textarea.is-code::selection {
+  background: var(--code-selection);
 }
 </style>

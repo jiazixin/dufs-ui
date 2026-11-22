@@ -24,6 +24,7 @@ const CODE_EXTS = new Set([
   '.tsx',
   '.jsx',
   '.json',
+  '.jsonc',
   '.yaml',
   '.yml',
   '.toml',
@@ -31,16 +32,26 @@ const CODE_EXTS = new Set([
   '.htm',
   '.css',
   '.scss',
+  '.less',
+  '.sass',
   '.xml',
   '.sql',
   '.sh',
+  '.bash',
+  '.zsh',
   '.py',
   '.go',
   '.rs',
   '.c',
   '.h',
   '.cpp',
+  '.cc',
+  '.cxx',
+  '.hpp',
   '.java',
+  '.kt',
+  '.kts',
+  '.gradle',
   '.swift',
   '.rb',
   '.php',
@@ -48,12 +59,22 @@ const CODE_EXTS = new Set([
   '.env',
   '.ini',
   '.conf',
+  '.cfg',
+  '.properties',
+  '.dockerfile',
 ])
+const CODE_BASENAMES = new Set(['dockerfile', 'makefile', '.env', '.gitignore', '.editorconfig'])
 const TEXT_EXTS = new Set(['.txt', '.md', '.markdown', '.log', '.csv', '.tsv'])
 const DOC_EXTS = new Set(['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'])
 
 export function isDirItem(item: PathItem): boolean {
   return item.path_type === 'Dir' || item.path_type === 'SymlinkDir'
+}
+
+export function isCodeFileName(filename: string): boolean {
+  const ext = getExtName(filename)
+  const lower = filename.toLowerCase()
+  return CODE_EXTS.has(ext) || CODE_BASENAMES.has(lower) || lower.startsWith('.env.')
 }
 
 export function detectFileKind(item: PathItem): FileKind {
@@ -65,7 +86,7 @@ export function detectFileKind(item: PathItem): FileKind {
   if (AUDIO_EXTS.has(ext)) return 'audio'
   if (PDF_EXTS.has(ext)) return 'pdf'
   if (ARCHIVE_EXTS.has(ext)) return 'archive'
-  if (CODE_EXTS.has(ext) || lower === 'dockerfile' || lower === 'makefile') return 'code'
+  if (isCodeFileName(item.name)) return 'code'
   if (TEXT_EXTS.has(ext) || lower === 'readme' || lower === 'license') return 'text'
   if (DOC_EXTS.has(ext)) return 'doc'
   return 'file'
