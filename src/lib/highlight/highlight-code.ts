@@ -49,6 +49,7 @@ export type CodeLanguage =
   | 'vue'
   | 'dockerfile'
   | 'makefile'
+  | 'hcl'
   | 'plain'
 
 export type CodeLanguageMeta = {
@@ -59,6 +60,8 @@ export type CodeLanguageMeta = {
 type LineScanState = {
   blockCommentEnd: string | null
   tripleQuote: '"' | "'" | null
+  heredocEnd: string | null
+  heredocIndented: boolean
 }
 
 const MAX_HIGHLIGHT_CHARS = 512 * 1024
@@ -89,6 +92,7 @@ const LANGUAGE_LABELS: Record<CodeLanguage, string> = {
   vue: 'VUE',
   dockerfile: 'DOCKER',
   makefile: 'MAKE',
+  hcl: 'HCL',
   plain: 'CODE',
 }
 
@@ -138,6 +142,15 @@ const EXT_TO_LANGUAGE: Record<string, CodeLanguage> = {
   '.xml': 'xml',
   '.vue': 'vue',
   '.dockerfile': 'dockerfile',
+  '.tf': 'hcl',
+  '.tofu': 'hcl',
+  '.tfvars': 'hcl',
+  '.vars': 'hcl',
+  '.hcl': 'hcl',
+  '.tfbackend': 'hcl',
+  '.tftpl': 'hcl',
+  '.nomad': 'hcl',
+  '.tfstate': 'json',
 }
 
 const KEYWORDS_BY_LANG: Partial<Record<CodeLanguage, ReadonlySet<string>>> = {
@@ -894,6 +907,87 @@ const BOOLEAN_LITERALS = new Set([
 
 const YAML_BOOLEANS = new Set(['true', 'false', 'null', 'yes', 'no', 'on', 'off', '~'])
 
+const HCL_BLOCK_KEYWORDS = new Set([
+  'terraform',
+  'resource',
+  'data',
+  'variable',
+  'output',
+  'locals',
+  'module',
+  'provider',
+  'required_providers',
+  'backend',
+  'cloud',
+  'encryption',
+  'moved',
+  'import',
+  'removed',
+  'check',
+  'assert',
+  'ephemeral',
+  'run',
+  'mock_provider',
+  'mock_resource',
+  'mock_data',
+  'override_resource',
+  'override_data',
+  'override_module',
+  'lifecycle',
+  'dynamic',
+  'content',
+  'provisioner',
+  'connection',
+  'validation',
+  'precondition',
+  'postcondition',
+  'stack',
+  'component',
+  'deployment',
+  'identity_token',
+  'store',
+  'publish_output',
+  'generate',
+  'include',
+  'dependency',
+  'dependencies',
+  'remote_state',
+  'source',
+  'build',
+  'packer',
+  'job',
+  'group',
+  'task',
+])
+
+const HCL_EXPR_KEYWORDS = new Set(['for', 'in', 'if', 'else', 'endif', 'endfor'])
+
+const HCL_TYPES = new Set([
+  'string',
+  'number',
+  'bool',
+  'any',
+  'list',
+  'set',
+  'map',
+  'object',
+  'tuple',
+])
+
+const HCL_SCOPE_REFS = new Set([
+  'var',
+  'local',
+  'module',
+  'data',
+  'path',
+  'self',
+  'each',
+  'count',
+  'terraform',
+  'ephemeral',
+  'provider',
+])
+
 const HASH_COMMENT_LANGS = new Set<CodeLanguage>([
   'python',
   'shell',
@@ -944,12 +1038,37 @@ export function detectCodeLanguage(filename: string): CodeLanguageMeta {
     lower === '.env' ||
     lower.startsWith('.env.') ||
     lower === '.gitignore' ||
-    lower === '.editorconfig'
+    lower === '.editorconfig' ||
+    lower === '.terraformignore'
   ) {
     return { id: 'ini', label: LANGUAGE_LABELS.ini }
   }
+  if (lower === '.tofurc' || lower === 'tofu.rc' || lower.endsWith('.tofutest.hcl')) {
+    return { id: 'hcl', label: 'OPENTOFU' }
+  }
+  if (lower === '.terraformrc' || lower === 'terraform.rc' || lower.endsWith('.tftest.hcl')) {
+    return { id: 'hcl', label: 'TERRAFORM' }
+  }
+  if (lower.endsWith('.tfstate.backup')) {
+    return { id: 'json', label: 'TFSTATE' }
+  }
 
   const ext = getExtName(base)
+  if (ext === '.tofu') {
+    return { id: 'hcl', label: 'OPENTOFU' }
+  }
+  if (
+    ext === '.tf' ||
+    ext === '.tfvars' ||
+    ext === '.vars' ||
+    ext === '.tfbackend' ||
+    ext === '.tftpl'
+  ) {
+    return { id: 'hcl', label: 'TERRAFORM' }
+  }
+  if (ext === '.tfstate') {
+    return { id: 'json', label: 'TFSTATE' }
+  }
   const id = EXT_TO_LANGUAGE[ext] ?? 'plain'
   return { id, label: LANGUAGE_LABELS[id] }
 }
@@ -1496,6 +1615,285 @@ function tokenizeCssLine(line: string, state: LineScanState): HighlightToken[] {
   return tokens
 }
 
+function isHclBlockHeader(afterWord: string): boolean {
+  return /^(?:(?:"(?:\\.|[^"\\])*"|[A-Za-z_][\w-]*)\s*)*\{/.test(afterWord)
+}
+
+function findHclInterpolationEnd(source: string, start: number): number {
+  let depth = 1
+  let inString = false
+  for (let i = start; i < source.length; i++) {
+    const ch = source[i]
+    if (!ch) continue
+    if (inString) {
+      if (ch === '\\') {
+        i++
+        continue
+      }
+      if (ch === '"') {
+        inString = false
+      }
+      continue
+    }
+    if (ch === '"') {
+      inString = true
+      continue
+    }
+    if (ch === '{') {
+      depth++
+      continue
+    }
+    if (ch === '}') {
+      depth--
+      if (depth === 0) {
+        return i
+      }
+    }
+  }
+  return -1
+}
+
+function tokenizeHclTemplateSegment(segment: string, tokens: HighlightToken[]): void {
+  let i = 0
+  let chunkStart = 0
+  const len = segment.length
+
+  while (i < len) {
+    const ch = segment[i]
+    if ((ch === '$' || ch === '%') && segment[i + 1] === ch && segment[i + 2] === '{') {
+      i += 3
+      continue
+    }
+    if ((ch === '$' || ch === '%') && segment[i + 1] === '{') {
+      const closeIdx = findHclInterpolationEnd(segment, i + 2)
+      if (closeIdx !== -1) {
+        if (i > chunkStart) {
+          pushToken(tokens, 'string', segment.slice(chunkStart, i))
+        }
+        pushToken(tokens, 'punct', segment.slice(i, i + 2))
+        const innerTokens = tokenizeHclFragment(segment.slice(i + 2, closeIdx), null, false)
+        for (const tok of innerTokens) {
+          pushToken(tokens, tok.kind, tok.text)
+        }
+        pushToken(tokens, 'punct', '}')
+        i = closeIdx + 1
+        chunkStart = i
+        continue
+      }
+    }
+    i++
+  }
+
+  if (chunkStart < len) {
+    pushToken(tokens, 'string', segment.slice(chunkStart))
+  }
+}
+
+function tokenizeHclFragment(
+  line: string,
+  state: LineScanState | null,
+  allowBlockHeader: boolean,
+): HighlightToken[] {
+  const tokens: HighlightToken[] = []
+  let i = 0
+  if (state) {
+    if (state.heredocEnd !== null) {
+      const trimmed = line.trim()
+      const isMatch = state.heredocIndented
+        ? trimmed === state.heredocEnd
+        : line === state.heredocEnd
+      if (isMatch) {
+        const leadLen = line.length - line.trimStart().length
+        const trailLen = line.length - line.trimEnd().length
+        if (leadLen > 0) pushToken(tokens, 'plain', line.slice(0, leadLen))
+        pushToken(tokens, 'meta', trimmed)
+        if (trailLen > 0) pushToken(tokens, 'plain', line.slice(line.length - trailLen))
+        state.heredocEnd = null
+        state.heredocIndented = false
+        return tokens
+      }
+      tokenizeHclTemplateSegment(line, tokens)
+      return tokens
+    }
+
+    i = consumeBlockComment(line, state, tokens)
+    if (i === -1) return tokens
+  }
+
+  const len = line.length
+  let isLineStart = allowBlockHeader
+
+  while (i < len) {
+    const ch = line[i]
+    if (!ch) break
+
+    if (/\s/.test(ch)) {
+      let j = i + 1
+      while (j < len && /\s/.test(line[j] ?? '')) j++
+      pushToken(tokens, 'plain', line.slice(i, j))
+      i = j
+      continue
+    }
+
+    // Comments (#, //, /* ... */)
+    if (ch === '#') {
+      pushToken(tokens, 'comment', line.slice(i))
+      break
+    }
+    if (ch === '/' && line[i + 1] === '/') {
+      pushToken(tokens, 'comment', line.slice(i))
+      break
+    }
+    if (ch === '/' && line[i + 1] === '*') {
+      const endIdx = line.indexOf('*/', i + 2)
+      if (endIdx === -1) {
+        pushToken(tokens, 'comment', line.slice(i))
+        if (state) state.blockCommentEnd = '*/'
+        break
+      }
+      pushToken(tokens, 'comment', line.slice(i, endIdx + 2))
+      i = endIdx + 2
+      continue
+    }
+
+    // Heredoc start (<<EOF / <<-EOF)
+    if (state && ch === '<' && line[i + 1] === '<') {
+      const heredocMatch = /^<<(-?)([A-Za-z_][A-Za-z0-9_-]*)(?=\s*(?:#|\/\/|$))/.exec(line.slice(i))
+      if (heredocMatch) {
+        const full = heredocMatch[0]
+        const isIndented = heredocMatch[1] === '-'
+        const marker = heredocMatch[2] ?? ''
+        pushToken(tokens, 'meta', full)
+        state.heredocEnd = marker
+        state.heredocIndented = isIndented
+        isLineStart = false
+        i += full.length
+        continue
+      }
+    }
+
+    // Double-quoted strings with ${...} / %{...} interpolation
+    if (ch === '"') {
+      let j = i + 1
+      let chunkStart = i
+      while (j < len) {
+        const cur = line[j]
+        if (cur === '\\' && j + 1 < len) {
+          j += 2
+          continue
+        }
+        if ((cur === '$' || cur === '%') && line[j + 1] === cur && line[j + 2] === '{') {
+          j += 3
+          continue
+        }
+        if ((cur === '$' || cur === '%') && line[j + 1] === '{') {
+          const closeIdx = findHclInterpolationEnd(line, j + 2)
+          if (closeIdx !== -1) {
+            pushToken(tokens, 'string', line.slice(chunkStart, j))
+            pushToken(tokens, 'punct', line.slice(j, j + 2))
+            const innerTokens = tokenizeHclFragment(line.slice(j + 2, closeIdx), null, false)
+            for (const tok of innerTokens) {
+              pushToken(tokens, tok.kind, tok.text)
+            }
+            pushToken(tokens, 'punct', '}')
+            j = closeIdx + 1
+            chunkStart = j
+            continue
+          }
+        }
+        if (cur === '"') {
+          j++
+          break
+        }
+        j++
+      }
+      if (j > chunkStart) {
+        pushToken(tokens, 'string', line.slice(chunkStart, j))
+      }
+      isLineStart = false
+      i = j
+      continue
+    }
+
+    // Numbers
+    if (/\d/.test(ch) && (i === 0 || !/[\w-]/.test(line[i - 1] ?? ''))) {
+      let j = i + 1
+      while (j < len && /[\d._xXa-fA-FeE+-]/.test(line[j] ?? '')) {
+        if ((line[j] === '+' || line[j] === '-') && line[j - 1] !== 'e' && line[j - 1] !== 'E') {
+          break
+        }
+        j++
+      }
+      pushToken(tokens, 'number', line.slice(i, j))
+      isLineStart = false
+      i = j
+      continue
+    }
+
+    // Identifiers (HCL allows hyphens inside identifiers)
+    if (/[A-Za-z_]/.test(ch)) {
+      let j = i + 1
+      while (j < len && /[\w-]/.test(line[j] ?? '')) j++
+      const word = line.slice(i, j)
+      const afterWord = line.slice(j).trimStart()
+      let kind: TokenKind = 'plain'
+
+      if (afterWord[0] === '=' && afterWord[1] !== '=' && afterWord[1] !== '>') {
+        kind = 'key'
+      } else if (isLineStart && isHclBlockHeader(afterWord)) {
+        kind = HCL_BLOCK_KEYWORDS.has(word) ? 'keyword' : 'section'
+      } else if (word === 'true' || word === 'false' || word === 'null') {
+        kind = 'boolean'
+      } else if (HCL_EXPR_KEYWORDS.has(word)) {
+        kind = 'keyword'
+      } else if (HCL_TYPES.has(word)) {
+        kind = 'type'
+      } else if (afterWord[0] === '(') {
+        kind = 'func'
+      } else if (HCL_SCOPE_REFS.has(word) && (afterWord[0] === '.' || afterWord[0] === '[')) {
+        kind = 'meta'
+      }
+
+      pushToken(tokens, kind, word)
+      isLineStart = false
+      i = j
+      continue
+    }
+
+    // Special HCL operators
+    if (ch === '=' && line[i + 1] === '>') {
+      pushToken(tokens, 'meta', '=>')
+      isLineStart = false
+      i += 2
+      continue
+    }
+    if (ch === '.' && line[i + 1] === '.' && line[i + 2] === '.') {
+      pushToken(tokens, 'meta', '...')
+      isLineStart = false
+      i += 3
+      continue
+    }
+
+    // Punctuation
+    if (/[{}()[\].,;:=<>!&|+\-/*?~^%]/.test(ch)) {
+      pushToken(tokens, 'punct', ch)
+      isLineStart = false
+      i++
+      continue
+    }
+
+    pushToken(tokens, 'plain', ch)
+    isLineStart = false
+    i++
+  }
+
+  return tokens
+}
+
+function tokenizeHclLine(line: string, state: LineScanState): HighlightToken[] {
+  return tokenizeHclFragment(line, state, true)
+}
+
 function classifyIdentifier(
   word: string,
   language: CodeLanguage,
@@ -1730,6 +2128,8 @@ export function tokenizeCode(source: string, language: CodeLanguage): readonly H
   const state: LineScanState = {
     blockCommentEnd: null,
     tripleQuote: null,
+    heredocEnd: null,
+    heredocIndented: false,
   }
 
   return rawLines.map((line, index) => {
@@ -1750,6 +2150,9 @@ export function tokenizeCode(source: string, language: CodeLanguage): readonly H
         break
       case 'css':
         tokens = tokenizeCssLine(line, state)
+        break
+      case 'hcl':
+        tokens = tokenizeHclLine(line, state)
         break
       default:
         tokens = tokenizeProgrammingLine(line, language, state)

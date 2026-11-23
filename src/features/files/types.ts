@@ -56,6 +56,8 @@ export type CodeIconLang =
   | 'swift'
   | 'ruby'
   | 'php'
+  | 'terraform'
+  | 'opentofu'
 
 export type UploadTaskState = 'queued' | 'uploading' | 'done' | 'error' | 'canceled'
 

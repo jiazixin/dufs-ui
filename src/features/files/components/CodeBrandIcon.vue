@@ -285,6 +285,27 @@ const { lang, size = 20 } = defineProps<{
         php
       </text>
     </template>
+
+    <template v-else-if="lang === 'terraform'">
+      <path fill="var(--lang-tf)" d="M3.5 3.4 9.1 6.6v6.4L3.5 9.8V3.4Z" />
+      <path fill="var(--lang-tf)" d="M9.7 7 15.3 10.2v6.4l-5.6-3.2V7Z" />
+      <path fill="var(--lang-tf)" d="M9.7 14.2 15.3 17.4v4.4l-5.6-3.2v-4.4Z" />
+      <path fill="var(--lang-tf-2)" d="M15.9 10.2 21.5 7v6.4l-5.6 3.2v-6.4Z" />
+    </template>
+
+    <template v-else-if="lang === 'opentofu'">
+      <path fill="var(--lang-tofu)" d="M12 2.6 20.4 7.2 12 11.8 3.6 7.2 12 2.6Z" />
+      <path fill="var(--lang-tofu-2)" d="M3.6 8.3 11.4 12.6v8.6L3.6 16.9V8.3Z" />
+      <path fill="var(--lang-tofu)" d="M20.4 8.3 12.6 12.6v8.6l7.8-4.3V8.3Z" />
+      <circle cx="9.6" cy="6.8" r=".9" fill="var(--lang-tofu-fg)" />
+      <circle cx="14.4" cy="6.8" r=".9" fill="var(--lang-tofu-fg)" />
+      <path
+        d="M10.1 8.4c1.1.8 2.7.8 3.8 0"
+        stroke="var(--lang-tofu-fg)"
+        stroke-width="1.2"
+        stroke-linecap="round"
+      />
+    </template>
   </svg>
 </template>
 

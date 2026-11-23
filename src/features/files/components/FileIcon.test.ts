@@ -21,6 +21,9 @@ describe('FileIcon', () => {
       ['server.go', 'go'],
       ['Application.java', 'java'],
       ['Dockerfile.prod', 'docker'],
+      ['main.tf', 'terraform'],
+      ['prod.vars', 'terraform'],
+      ['network.tofu', 'opentofu'],
     ]
 
     for (const [name, expectedLang] of cases) {

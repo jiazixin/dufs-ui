@@ -22,6 +22,14 @@ describe('detectCodeLanguage', () => {
     expect(detectCodeLanguage('.env.production')).toEqual({ id: 'ini', label: 'INI' })
     expect(detectCodeLanguage('Dockerfile')).toEqual({ id: 'dockerfile', label: 'DOCKER' })
     expect(detectCodeLanguage('Makefile')).toEqual({ id: 'makefile', label: 'MAKE' })
+    expect(detectCodeLanguage('main.tf')).toEqual({ id: 'hcl', label: 'TERRAFORM' })
+    expect(detectCodeLanguage('prod.tfvars')).toEqual({ id: 'hcl', label: 'TERRAFORM' })
+    expect(detectCodeLanguage('common.vars')).toEqual({ id: 'hcl', label: 'TERRAFORM' })
+    expect(detectCodeLanguage('network.tofu')).toEqual({ id: 'hcl', label: 'OPENTOFU' })
+    expect(detectCodeLanguage('vpc.tofutest.hcl')).toEqual({ id: 'hcl', label: 'OPENTOFU' })
+    expect(detectCodeLanguage('.terraform.lock.hcl')).toEqual({ id: 'hcl', label: 'HCL' })
+    expect(detectCodeLanguage('terraform.tfstate')).toEqual({ id: 'json', label: 'TFSTATE' })
+    expect(detectCodeLanguage('terraform.tfstate.backup')).toEqual({ id: 'json', label: 'TFSTATE' })
     expect(detectCodeLanguage('unknown.xyz')).toEqual({ id: 'plain', label: 'CODE' })
   })
 })
@@ -136,5 +144,56 @@ describe('tokenizeCode', () => {
     expect(findTokenKind(lines[0] ?? { number: 1, tokens: [] }, '"count > 0"')).toBe('string')
     expect(findTokenKind(lines[0] ?? { number: 1, tokens: [] }, '@click')).toBe('key')
     expect(findTokenKind(lines[0] ?? { number: 1, tokens: [] }, '"() => save()"')).toBe('string')
+  })
+
+  it('highlights HCL / Terraform / OpenTofu blocks, keys, interpolations, types, functions, and heredocs', () => {
+    const source = [
+      '# OpenTofu config',
+      'variable "region" {',
+      '  type    = list(string)',
+      '  default = ["ap-southeast-1"]',
+      '}',
+      'resource "aws_s3_bucket" "assets" {',
+      '  bucket = "${var.prefix}-assets"',
+      '  count  = 2',
+      '  force_destroy = false',
+      '  tags = merge(local.tags, { env = "prod" })',
+      '  lifecycle {',
+      '    prevent_destroy = true',
+      '  }',
+      '  ingress {',
+      '    from_port = 443',
+      '  }',
+      '  policy = <<-EOF',
+      '    {"bucket": "${var.prefix}"}',
+      '  EOF',
+      '}',
+    ].join('\n')
+
+    const lines = tokenizeCode(source, 'hcl')
+    expect(lines.map(joinLineText).join('\n')).toBe(source)
+
+    expect(lines[0]?.tokens).toEqual([{ kind: 'comment', text: '# OpenTofu config' }])
+    expect(findTokenKind(lines[1] ?? { number: 2, tokens: [] }, 'variable')).toBe('keyword')
+    expect(findTokenKind(lines[1] ?? { number: 2, tokens: [] }, '"region"')).toBe('string')
+    expect(findTokenKind(lines[2] ?? { number: 3, tokens: [] }, 'type')).toBe('key')
+    expect(findTokenKind(lines[2] ?? { number: 3, tokens: [] }, 'list')).toBe('type')
+    expect(findTokenKind(lines[2] ?? { number: 3, tokens: [] }, 'string')).toBe('type')
+    expect(findTokenKind(lines[5] ?? { number: 6, tokens: [] }, 'resource')).toBe('keyword')
+    expect(findTokenKind(lines[6] ?? { number: 7, tokens: [] }, 'bucket')).toBe('key')
+    expect(findTokenKind(lines[6] ?? { number: 7, tokens: [] }, '${')).toBe('punct')
+    expect(findTokenKind(lines[6] ?? { number: 7, tokens: [] }, 'var')).toBe('meta')
+    expect(findTokenKind(lines[6] ?? { number: 7, tokens: [] }, '}')).toBe('punct')
+    expect(findTokenKind(lines[7] ?? { number: 8, tokens: [] }, '2')).toBe('number')
+    expect(findTokenKind(lines[8] ?? { number: 9, tokens: [] }, 'false')).toBe('boolean')
+    expect(findTokenKind(lines[9] ?? { number: 10, tokens: [] }, 'merge')).toBe('func')
+    expect(findTokenKind(lines[9] ?? { number: 10, tokens: [] }, 'local')).toBe('meta')
+    expect(findTokenKind(lines[9] ?? { number: 10, tokens: [] }, 'env')).toBe('key')
+    expect(findTokenKind(lines[10] ?? { number: 11, tokens: [] }, 'lifecycle')).toBe('keyword')
+    expect(findTokenKind(lines[13] ?? { number: 14, tokens: [] }, 'ingress')).toBe('section')
+    expect(findTokenKind(lines[16] ?? { number: 17, tokens: [] }, '<<-EOF')).toBe('meta')
+    expect(findTokenKind(lines[17] ?? { number: 18, tokens: [] }, '${')).toBe('punct')
+    expect(findTokenKind(lines[17] ?? { number: 18, tokens: [] }, 'var')).toBe('meta')
+    expect(findTokenKind(lines[18] ?? { number: 19, tokens: [] }, 'EOF')).toBe('meta')
   })
 })

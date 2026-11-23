@@ -71,6 +71,11 @@
   --lang-swift: #e84d31;
   --lang-rb: #cc2927;
   --lang-php: #6167a6;
+  --lang-tf: #7b42bc;
+  --lang-tf-2: #5c4ee5;
+  --lang-tofu: #eab308;
+  --lang-tofu-2: #ca8a04;
+  --lang-tofu-fg: #18181b;
 
   /* Special surfaces */
   --qr-bg: #fff;
@@ -183,6 +188,11 @@
   --lang-swift: #fb7156;
   --lang-rb: #f87171;
   --lang-php: #9fa6e8;
+  --lang-tf: #a78bfa;
+  --lang-tf-2: #818cf8;
+  --lang-tofu: #facc15;
+  --lang-tofu-2: #eab308;
+  --lang-tofu-fg: #18181b;
 
   --qr-border: rgb(255 255 255 / 12%);
   --overlay-bg: rgb(0 0 0 / 68%);

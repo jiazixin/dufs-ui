@@ -74,4 +74,48 @@ describe('file-types', () => {
     expect(detectCodeIconLang(fileItem('services/api/Dockerfile.prod'))).toBe('docker')
     expect(detectCodeIconLang(fileItem('v1.0/README'))).toBeNull()
   })
+
+  it('recognizes Terraform, OpenTofu, and HCL ecosystem files and icons', () => {
+    const codeFiles = [
+      'main.tf',
+      'network.tofu',
+      'prod.tfvars',
+      'common.vars',
+      'terragrunt.hcl',
+      '.terraform.lock.hcl',
+      'vpc.tftest.hcl',
+      'vpc.tofutest.hcl',
+      'prod.s3.tfbackend',
+      'cloud-init.tftpl',
+      'terraform.tfstate',
+      'terraform.tfstate.backup',
+      'main.tf.json',
+      'main.tofu.json',
+      '.terraformrc',
+      'terraform.rc',
+      '.tofurc',
+      'tofu.rc',
+      '.terraformignore',
+      'app.nomad',
+    ]
+    for (const name of codeFiles) {
+      expect(detectFileKind(fileItem(name))).toBe('code')
+      expect(isCodeFileName(name)).toBe(true)
+    }
+
+    expect(detectFileKind(fileItem('.terraform-version'))).toBe('text')
+    expect(detectFileKind(fileItem('.opentofu-version'))).toBe('text')
+
+    expect(detectCodeIconLang(fileItem('main.tf'))).toBe('terraform')
+    expect(detectCodeIconLang(fileItem('prod.tfvars'))).toBe('terraform')
+    expect(detectCodeIconLang(fileItem('common.vars'))).toBe('terraform')
+    expect(detectCodeIconLang(fileItem('terragrunt.hcl'))).toBe('terraform')
+    expect(detectCodeIconLang(fileItem('terraform.tfstate'))).toBe('terraform')
+    expect(detectCodeIconLang(fileItem('terraform.tfstate.backup'))).toBe('terraform')
+    expect(detectCodeIconLang(fileItem('main.tf.json'))).toBe('terraform')
+    expect(detectCodeIconLang(fileItem('infra/main.tofu'))).toBe('opentofu')
+    expect(detectCodeIconLang(fileItem('tests/vpc.tofutest.hcl'))).toBe('opentofu')
+    expect(detectCodeIconLang(fileItem('main.tofu.json'))).toBe('opentofu')
+    expect(detectCodeIconLang(fileItem('.tofurc'))).toBe('opentofu')
+  })
 })

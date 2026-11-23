@@ -62,6 +62,15 @@ const CODE_EXTS = new Set([
   '.cfg',
   '.properties',
   '.dockerfile',
+  '.tf',
+  '.tofu',
+  '.tfvars',
+  '.vars',
+  '.hcl',
+  '.tfbackend',
+  '.tftpl',
+  '.tfstate',
+  '.nomad',
 ])
 const CODE_BASENAMES = new Set([
   'dockerfile',
@@ -70,9 +79,23 @@ const CODE_BASENAMES = new Set([
   '.env',
   '.gitignore',
   '.editorconfig',
+  '.terraformrc',
+  'terraform.rc',
+  '.tofurc',
+  'tofu.rc',
+  '.terraformignore',
 ])
 const TEXT_EXTS = new Set(['.txt', '.md', '.markdown', '.log', '.csv', '.tsv'])
-const TEXT_BASENAMES = new Set(['readme', 'license', 'go.mod', 'go.sum', 'go.work', 'go.work.sum'])
+const TEXT_BASENAMES = new Set([
+  'readme',
+  'license',
+  'go.mod',
+  'go.sum',
+  'go.work',
+  'go.work.sum',
+  '.terraform-version',
+  '.opentofu-version',
+])
 const DOC_EXTS = new Set(['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'])
 
 const CODE_ICON_BY_EXT: Readonly<Record<string, CodeIconLang>> = {
@@ -113,6 +136,15 @@ const CODE_ICON_BY_EXT: Readonly<Record<string, CodeIconLang>> = {
   '.swift': 'swift',
   '.rb': 'ruby',
   '.php': 'php',
+  '.tf': 'terraform',
+  '.tfvars': 'terraform',
+  '.vars': 'terraform',
+  '.hcl': 'terraform',
+  '.tfbackend': 'terraform',
+  '.tftpl': 'terraform',
+  '.tfstate': 'terraform',
+  '.nomad': 'terraform',
+  '.tofu': 'opentofu',
 }
 
 export function isDirItem(item: PathItem): boolean {
@@ -127,7 +159,8 @@ export function isCodeFileName(filename: string): boolean {
     CODE_EXTS.has(ext) ||
     CODE_BASENAMES.has(lower) ||
     lower.startsWith('.env.') ||
-    lower.startsWith('dockerfile.')
+    lower.startsWith('dockerfile.') ||
+    lower.endsWith('.tfstate.backup')
   )
 }
 
@@ -137,6 +170,25 @@ export function detectCodeIconLang(item: PathItem): CodeIconLang | null {
   const lower = base.toLowerCase()
   if (lower === 'dockerfile' || lower.startsWith('dockerfile.')) {
     return 'docker'
+  }
+  if (
+    lower === '.tofurc' ||
+    lower === 'tofu.rc' ||
+    lower.endsWith('.tofutest.hcl') ||
+    lower.endsWith('.tofutest.json') ||
+    lower.endsWith('.tofu.json')
+  ) {
+    return 'opentofu'
+  }
+  if (
+    lower === '.terraformrc' ||
+    lower === 'terraform.rc' ||
+    lower.endsWith('.tfstate.backup') ||
+    lower.endsWith('.tf.json') ||
+    lower.endsWith('.tfvars.json') ||
+    lower.endsWith('.tftest.json')
+  ) {
+    return 'terraform'
   }
   const ext = getExtName(base)
   return CODE_ICON_BY_EXT[ext] ?? null
