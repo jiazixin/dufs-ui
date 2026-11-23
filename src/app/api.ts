@@ -31,6 +31,7 @@ export type ApiRequestOptions = {
   headers?: Record<string, string>
   responseType?: 'json' | 'text' | 'void' | 'headers'
   timeoutMs?: number
+  cache?: RequestCache
 }
 
 type UnauthorizedHandler = () => void
@@ -65,6 +66,7 @@ export async function api<T>(path: string, options: ApiRequestOptions = {}): Pro
     headers,
     responseType = 'json',
     timeoutMs = 30_000,
+    cache,
   } = options
 
   const controller = new AbortController()
@@ -92,6 +94,7 @@ export async function api<T>(path: string, options: ApiRequestOptions = {}): Pro
       body,
       headers,
       signal: controller.signal,
+      ...(cache ? { cache } : {}),
     })
   } catch (error: unknown) {
     window.clearTimeout(timer)

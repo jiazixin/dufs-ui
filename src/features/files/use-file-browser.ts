@@ -1,4 +1,4 @@
-import { computed, onWatcherCleanup, ref, watch } from 'vue'
+import { computed, onScopeDispose, onWatcherCleanup, ref, watch } from 'vue'
 import { api, logoutRequest } from '../../app/api'
 import { openConfirm, openPrompt } from '../../app/dialog'
 import { errorText } from '../../app/errors'
@@ -13,6 +13,14 @@ const VIEW_STORAGE_KEY = 'dufs_ui_view'
 
 function readQueryParam(name: string): string {
   return new URLSearchParams(window.location.search).get(name) ?? ''
+}
+
+function isBackForwardNavigation(): boolean {
+  if (typeof performance === 'undefined' || typeof performance.getEntriesByType !== 'function') {
+    return false
+  }
+  const entry = performance.getEntriesByType('navigation')[0]
+  return entry !== undefined && 'type' in entry && entry.type === 'back_forward'
 }
 
 function parseInitialSort(): { field: SortField; order: SortOrder } {
@@ -121,8 +129,25 @@ export function useFileBrowser() {
     syncUrlQuery()
   }
 
+  let activeRefreshController: AbortController | null = null
+
   async function refreshList(signal?: AbortSignal): Promise<void> {
     if (isDemo) return
+    activeRefreshController?.abort()
+    const controller = new AbortController()
+    activeRefreshController = controller
+
+    const onExternalAbort = (): void => {
+      controller.abort(signal?.reason)
+    }
+    if (signal) {
+      if (signal.aborted) {
+        controller.abort(signal.reason)
+      } else {
+        signal.addEventListener('abort', onExternalAbort, { once: true })
+      }
+    }
+
     isLoading.value = true
     loadError.value = null
     try {
@@ -141,7 +166,11 @@ export function useFileBrowser() {
         allow_search?: boolean
         allow_archive?: boolean
         user?: string | null
-      }>(`${getBaseUrl()}?${qs.toString()}`, { signal })
+      }>(`${getBaseUrl()}?${qs.toString()}`, {
+        signal: controller.signal,
+        cache: 'no-store',
+      })
+      if (controller.signal.aborted) return
       const nextAllowUpload =
         typeof result.allow_upload === 'boolean' ? result.allow_upload : data.value.allow_upload
       const nextAllowDelete =
@@ -179,10 +208,21 @@ export function useFileBrowser() {
         }
       }
     } catch (error: unknown) {
-      if (error instanceof DOMException && error.name === 'AbortError') return
+      if (
+        controller.signal.aborted ||
+        (error instanceof DOMException && error.name === 'AbortError')
+      ) {
+        return
+      }
       loadError.value = errorText(error, FILE_ERROR_MESSAGES)
     } finally {
-      isLoading.value = false
+      if (signal) {
+        signal.removeEventListener('abort', onExternalAbort)
+      }
+      if (activeRefreshController === controller) {
+        activeRefreshController = null
+        isLoading.value = false
+      }
     }
   }
 
@@ -205,6 +245,30 @@ export function useFileBrowser() {
       },
       value.trim() ? 240 : 0,
     )
+  })
+
+  // Refresh directory listing on history back/forward navigation (HTTP cache or bfcache restore)
+  const handlePageShow = (event: PageTransitionEvent): void => {
+    if (!event.persisted) return
+    if (isDemo || data.value.kind !== 'Index') return
+    void refreshList()
+  }
+
+  if (!isDemo && data.value.kind === 'Index') {
+    window.addEventListener('pageshow', handlePageShow)
+    if (isBackForwardNavigation()) {
+      void refreshList()
+    }
+  }
+
+  onScopeDispose(() => {
+    window.removeEventListener('pageshow', handlePageShow)
+    if (searchTimer !== null) {
+      window.clearTimeout(searchTimer)
+      searchTimer = null
+    }
+    activeRefreshController?.abort()
+    activeRefreshController = null
   })
 
   async function checkAuth(variant?: 'login'): Promise<void> {

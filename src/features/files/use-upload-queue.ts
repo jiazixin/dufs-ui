@@ -1,4 +1,4 @@
-import { computed, onScopeDispose, ref } from 'vue'
+import { computed, onScopeDispose, ref, watch } from 'vue'
 import { api, uploadFileRequest } from '../../app/api'
 import type { UploadHandle } from '../../app/api'
 import { errorText } from '../../app/errors'
@@ -351,7 +351,19 @@ export function useUploadQueue(options: UseUploadQueueOptions) {
   window.addEventListener('dragleave', onDragLeave)
   window.addEventListener('drop', onDrop)
   document.addEventListener('paste', onPaste)
-  window.addEventListener('beforeunload', onBeforeUnload)
+
+  // Only register beforeunload while uploads are active so bfcache stays enabled
+  watch(
+    () => activeCount.value > 0,
+    (hasActive) => {
+      if (hasActive) {
+        window.addEventListener('beforeunload', onBeforeUnload)
+      } else {
+        window.removeEventListener('beforeunload', onBeforeUnload)
+      }
+    },
+    { immediate: true },
+  )
 
   onScopeDispose(() => {
     window.removeEventListener('dragenter', onDragEnter)
