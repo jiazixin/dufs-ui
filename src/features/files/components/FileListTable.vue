@@ -391,22 +391,29 @@ function handleNameClick(event: MouseEvent, item: PathItem): void {
 
   .file-row {
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 6px 10px;
+    gap: 4px 10px;
     padding: 10px 12px;
   }
 
   .file-main {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    align-self: center;
     padding-right: 0;
   }
 
   .file-size {
+    grid-column: 2;
+    grid-row: 1;
     text-align: right;
   }
 
   .file-actions {
-    grid-column: 1 / -1;
+    grid-column: 2;
+    grid-row: 2;
     justify-content: flex-end;
-    gap: 4px;
+    gap: 2px;
+    margin-right: -6px;
     opacity: 1;
   }
 }
